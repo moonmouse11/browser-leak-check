@@ -7,8 +7,8 @@ test('shows a loading state before the IP/WebRTC checks resolve', async ({
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
 
-  await expect(popup.locator('#ipv4')).toHaveText('Checking…');
-  await expect(popup.locator('#webrtc')).toHaveText('Checking…');
+  await expect(popup.locator('#row-ipv4 .lc-row-value')).toHaveText('checking');
+  await expect(popup.locator('#row-webrtc .lc-row-value')).toHaveText('checking');
 });
 
 test('resolves IP and WebRTC status and opens the report page from "More details"', async ({
@@ -18,8 +18,12 @@ test('resolves IP and WebRTC status and opens the report page from "More details
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
 
-  await expect(popup.locator('#ipv4')).not.toHaveText('Checking…', { timeout: 10_000 });
-  await expect(popup.locator('#webrtc')).not.toHaveText('Checking…', { timeout: 10_000 });
+  await expect(popup.locator('#row-ipv4 .lc-row-value')).not.toHaveText('checking', {
+    timeout: 10_000,
+  });
+  await expect(popup.locator('#row-webrtc .lc-row-value')).not.toHaveText('checking', {
+    timeout: 10_000,
+  });
 
   const [reportPage] = await Promise.all([
     context.waitForEvent('page'),

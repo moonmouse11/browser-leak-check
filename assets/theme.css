@@ -1,0 +1,268 @@
+/* Terminal/diagnostic-readout theme - deliberately not a card-and-shadow
+   dashboard look. This is a network/security check tool, so it reads like
+   one: monospace throughout, bracketed status tokens, dashed rule lines. */
+
+:root {
+  color-scheme: light dark;
+
+  --lc-bg: #f6f4ee;
+  --lc-surface: #fdfcf8;
+  --lc-border: #d8d3c4;
+  --lc-text: #22252b;
+  --lc-muted: #767361;
+  --lc-accent: #6b4fd6;
+
+  --lc-ok: #16794c;
+  --lc-warn: #92650b;
+  --lc-bad: #b3261e;
+  --lc-info: #2452a8;
+
+  --lc-mono: ui-monospace, SFMono-Regular, 'SF Mono', 'JetBrains Mono', Menlo, Consolas,
+    monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --lc-bg: #0f1117;
+    --lc-surface: #161922;
+    --lc-border: #262b36;
+    --lc-text: #e3e6ee;
+    --lc-muted: #767e8c;
+    --lc-accent: #b39ef4;
+
+    --lc-ok: #6ee7a0;
+    --lc-warn: #ffcb6b;
+    --lc-bad: #ff6b81;
+    --lc-info: #6fc3ff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--lc-bg);
+  color: var(--lc-text);
+  font-family: var(--lc-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.025) 0px,
+      rgba(255, 255, 255, 0.025) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+}
+
+/* Header - a fake shell prompt, not a wordmark-plus-tagline block */
+
+.lc-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lc-header .lc-prompt {
+  color: var(--lc-accent);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.lc-header .lc-prompt-sep {
+  color: var(--lc-muted);
+}
+
+.lc-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--lc-accent);
+  animation: lc-blink 1s steps(1) infinite;
+}
+
+.lc-comment {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--lc-muted);
+}
+
+.lc-comment::before {
+  content: '# ';
+}
+
+@keyframes lc-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Panel - one bordered block, rows separated by dashed rules instead of
+   floating white cards with shadows */
+
+.lc-panel {
+  border: 1px solid var(--lc-border);
+  background: var(--lc-surface);
+}
+
+.lc-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.lc-row + .lc-row {
+  border-top: 1px dashed var(--lc-border);
+}
+
+.lc-row-label {
+  flex: 0 0 auto;
+  min-width: 58px;
+  color: var(--lc-muted);
+}
+
+.lc-row-value {
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
+.lc-row-value--pending {
+  color: var(--lc-muted);
+}
+
+.lc-mono {
+  font-family: var(--lc-mono);
+}
+
+/* Status token - a bordered [ WORD ] tag, colored and labeled purely by
+   data-variant, so JS only ever sets one attribute */
+
+.lc-badge {
+  flex: 0 0 auto;
+  min-width: 48px;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+}
+
+.lc-badge[data-variant='pending'] {
+  color: var(--lc-muted);
+}
+.lc-badge[data-variant='pending']::before {
+  content: '···';
+}
+
+.lc-badge[data-variant='info'] {
+  color: var(--lc-info);
+}
+.lc-badge[data-variant='info']::before {
+  content: 'INFO';
+}
+
+.lc-badge[data-variant='ok'] {
+  color: var(--lc-ok);
+}
+.lc-badge[data-variant='ok']::before {
+  content: 'OK';
+}
+
+.lc-badge[data-variant='warn'] {
+  color: var(--lc-warn);
+}
+.lc-badge[data-variant='warn']::before {
+  content: 'WARN';
+}
+
+.lc-badge[data-variant='bad'] {
+  color: var(--lc-bad);
+}
+.lc-badge[data-variant='bad']::before {
+  content: 'RISK';
+}
+
+/* Note - a comment line, not an info-icon-in-a-tinted-box */
+
+.lc-note {
+  padding: 8px 12px;
+  color: var(--lc-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  border: 1px dashed var(--lc-border);
+}
+
+.lc-note::before {
+  content: '# ';
+  color: var(--lc-accent);
+}
+
+/* Button - an outlined command line that inverts on hover, not a filled
+   rounded pill */
+
+.lc-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--lc-accent);
+  background: transparent;
+  color: var(--lc-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lc-btn::before {
+  content: '> ';
+}
+
+.lc-btn:hover {
+  background: var(--lc-accent);
+  color: var(--lc-bg);
+}
+
+.lc-btn:focus-visible {
+  outline: 2px solid var(--lc-accent);
+  outline-offset: 2px;
+}
+
+/* WebRTC candidate list - tags, not rounded pills */
+
+.lc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+  margin: 0;
+  list-style: none;
+}
+
+.lc-tag {
+  display: inline-block;
+  border: 1px solid var(--lc-border);
+  color: var(--lc-text);
+  font-size: 12px;
+  padding: 2px 7px;
+}
+
+.lc-tag::marker {
+  content: '';
+}
+
+.lc-tag-type {
+  color: var(--lc-muted);
+  margin-right: 5px;
+}

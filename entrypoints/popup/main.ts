@@ -1,22 +1,39 @@
+import '@/assets/theme.css';
 import './style.css';
 import { browser } from 'wxt/browser';
 import { detectPublicIp } from '@/lib/ip-detection';
 import { detectWebrtcLeak } from '@/lib/webrtc-leak-detection';
-import { formatIpResult } from '@/lib/format';
+import { ipStatus, webrtcStatus } from '@/lib/format';
+import { renderStatusRow } from '@/lib/dom';
+
+function statusRow(id: string, label: string): string {
+  return `
+    <div class="lc-row" id="${id}">
+      <span class="lc-row-label">${label}</span>
+      <span class="lc-row-value lc-mono lc-row-value--pending">checking</span>
+      <span class="lc-badge" data-variant="pending"></span>
+    </div>
+  `;
+}
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
-  <h1>Leak check</h1>
-  <dl>
-    <dt>IPv4</dt><dd id="ipv4">Checking…</dd>
-    <dt>IPv6</dt><dd id="ipv6">Checking…</dd>
-    <dt>WebRTC</dt><dd id="webrtc">Checking…</dd>
-  </dl>
-  <p class="disclosure">
-    The WebRTC check contacts one or more public STUN servers to look for
-    leaked addresses.
-  </p>
-  <button id="details" type="button">More details</button>
+  <div>
+    <div class="lc-header">
+      <span class="lc-prompt">leak-check</span><span class="lc-prompt-sep">$</span> status<span class="lc-cursor"></span>
+    </div>
+    <p class="lc-comment">privacy quick check</p>
+  </div>
+
+  <div class="lc-panel">
+    ${statusRow('row-ipv4', 'ipv4')}
+    ${statusRow('row-ipv6', 'ipv6')}
+    ${statusRow('row-webrtc', 'webrtc')}
+  </div>
+
+  <p class="lc-note">webrtc check contacts one or more public stun servers to look for leaked addresses</p>
+
+  <button id="details" class="lc-btn" type="button">more details</button>
 `;
 
 document.querySelector<HTMLButtonElement>('#details')!.addEventListener('click', () => {
@@ -24,13 +41,10 @@ document.querySelector<HTMLButtonElement>('#details')!.addEventListener('click',
 });
 
 detectPublicIp().then((result) => {
-  document.querySelector('#ipv4')!.textContent = formatIpResult(result.v4);
-  document.querySelector('#ipv6')!.textContent = formatIpResult(result.v6);
+  renderStatusRow('row-ipv4', ipStatus(result.v4), true);
+  renderStatusRow('row-ipv6', ipStatus(result.v6), true);
 });
 
 detectWebrtcLeak().then((result) => {
-  const count = result.candidates.length;
-  document.querySelector('#webrtc')!.textContent = result.leakDetected
-    ? `Leak detected (${count} address${count === 1 ? '' : 'es'})`
-    : 'No leak detected';
+  renderStatusRow('row-webrtc', webrtcStatus(result));
 });
