@@ -2,8 +2,9 @@ import '@/assets/theme.css';
 import './style.css';
 import { detectPublicIp } from '@/lib/ip-detection';
 import { detectWebrtcLeak } from '@/lib/webrtc-leak-detection';
+import { detectDnsLeak } from '@/lib/dns-leak-detection';
 import { collectFingerprintSurface, type FingerprintSignal } from '@/lib/fingerprint-surface';
-import { formatSignal, ipStatus, webrtcStatus } from '@/lib/format';
+import { dnsStatus, formatSignal, ipStatus, webrtcStatus } from '@/lib/format';
 import { renderStatusRow } from '@/lib/dom';
 
 function statusRow(id: string, label: string): string {
@@ -60,6 +61,15 @@ app.innerHTML = `
   </div>
 
   <div class="lc-section">
+    <h2 class="lc-section-title">## dns leak</h2>
+    <p class="lc-note">this check contacts bash.ws, a public dns-leak-test service, to see which resolvers answer for your queries</p>
+    <div class="lc-panel">
+      ${statusRow('row-dns', 'status')}
+    </div>
+    <ul class="lc-tags" id="dns-resolvers"></ul>
+  </div>
+
+  <div class="lc-section">
     <h2 class="lc-section-title">## fingerprint surface</h2>
     <div class="lc-panel" id="fingerprint"></div>
   </div>
@@ -77,6 +87,17 @@ detectWebrtcLeak().then((result) => {
     .map(
       (candidate) =>
         `<li class="lc-tag lc-mono"><span class="lc-tag-type">${candidate.type}</span>${candidate.address}</li>`,
+    )
+    .join('');
+});
+
+detectDnsLeak().then((result) => {
+  renderStatusRow('row-dns', dnsStatus(result));
+
+  document.querySelector('#dns-resolvers')!.innerHTML = result.resolvers
+    .map(
+      (resolver) =>
+        `<li class="lc-tag lc-mono">${resolver.ip}${resolver.countryName ? ` <span class="lc-tag-type">${resolver.countryName}</span>` : ''}</li>`,
     )
     .join('');
 });

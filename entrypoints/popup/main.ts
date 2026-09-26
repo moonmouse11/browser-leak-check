@@ -3,7 +3,8 @@ import './style.css';
 import { browser } from 'wxt/browser';
 import { detectPublicIp } from '@/lib/ip-detection';
 import { detectWebrtcLeak } from '@/lib/webrtc-leak-detection';
-import { ipStatus, webrtcStatus } from '@/lib/format';
+import { detectDnsLeak } from '@/lib/dns-leak-detection';
+import { dnsStatus, ipStatus, webrtcStatus } from '@/lib/format';
 import { renderStatusRow } from '@/lib/dom';
 
 function statusRow(id: string, label: string): string {
@@ -29,9 +30,10 @@ app.innerHTML = `
     ${statusRow('row-ipv4', 'ipv4')}
     ${statusRow('row-ipv6', 'ipv6')}
     ${statusRow('row-webrtc', 'webrtc')}
+    ${statusRow('row-dns', 'dns')}
   </div>
 
-  <p class="lc-note">webrtc check contacts one or more public stun servers to look for leaked addresses</p>
+  <p class="lc-note">webrtc check contacts one or more public stun servers; dns check contacts bash.ws</p>
 
   <button id="details" class="lc-btn" type="button">more details</button>
 `;
@@ -47,4 +49,8 @@ detectPublicIp().then((result) => {
 
 detectWebrtcLeak().then((result) => {
   renderStatusRow('row-webrtc', webrtcStatus(result));
+});
+
+detectDnsLeak().then((result) => {
+  renderStatusRow('row-dns', dnsStatus(result));
 });

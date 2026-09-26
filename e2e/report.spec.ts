@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures';
 
-test('renders IP, WebRTC leak, and fingerprint surface sections', async ({
+test('renders IP, WebRTC leak, DNS leak, and fingerprint surface sections', async ({
   context,
   extensionId,
 }) => {
@@ -12,6 +12,9 @@ test('renders IP, WebRTC leak, and fingerprint surface sections', async ({
   });
   await expect(page.locator('#row-webrtc .lc-row-value')).not.toHaveText('checking', {
     timeout: 10_000,
+  });
+  await expect(page.locator('#row-dns .lc-row-value')).not.toHaveText('checking', {
+    timeout: 15_000,
   });
 
   // 8 fingerprint-surface signals: UA, platform, screen, timezone,

@@ -9,6 +9,7 @@ test('shows a loading state before the IP/WebRTC checks resolve', async ({
 
   await expect(popup.locator('#row-ipv4 .lc-row-value')).toHaveText('checking');
   await expect(popup.locator('#row-webrtc .lc-row-value')).toHaveText('checking');
+  await expect(popup.locator('#row-dns .lc-row-value')).toHaveText('checking');
 });
 
 test('resolves IP and WebRTC status and opens the report page from "More details"', async ({
@@ -22,6 +23,9 @@ test('resolves IP and WebRTC status and opens the report page from "More details
     timeout: 10_000,
   });
   await expect(popup.locator('#row-webrtc .lc-row-value')).not.toHaveText('checking', {
+    timeout: 10_000,
+  });
+  await expect(popup.locator('#row-dns .lc-row-value')).not.toHaveText('checking', {
     timeout: 10_000,
   });
 
