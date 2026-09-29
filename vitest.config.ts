@@ -9,8 +9,9 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    // e2e/ uses @playwright/test's own runner (`npm run test:e2e`), not
-    // vitest - excluded here since both use a *.spec.ts naming convention.
-    exclude: ['**/node_modules/**', 'e2e/**'],
+    // e2e/ and e2e-firefox/*.spec.ts use @playwright/test's own runner
+    // (`npm run test:e2e`), not vitest - excluded here since both use a
+    // *.spec.ts naming convention. e2e-firefox/*.test.ts stay in vitest.
+    exclude: ['**/node_modules/**', 'e2e/**', 'e2e-firefox/**/*.spec.ts'],
   },
 });

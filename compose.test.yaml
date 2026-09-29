@@ -1,0 +1,24 @@
+# npm run test:docker - see README "Running tests in Docker".
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    # Chosen by scripts/test-docker.sh so build output and test-results
+    # written through the bind mount stay owned by the host user (root under
+    # rootless Docker, the host uid under rootful Docker).
+    user: '${HOST_UID:-1000}:${HOST_GID:-1000}'
+    volumes:
+      - .:/work
+      # Linux-native node_modules for the container; the host's own
+      # node_modules is hidden from it and never touched.
+      - node_modules:/work/node_modules
+    # Firefox and Chromium need more than Docker's default 64 MB of /dev/shm.
+    shm_size: 1gb
+    # The host's network directly: tests hit real services and must see the
+    # same network (VPN included) as the host. It also works where the host
+    # has IPv4 forwarding disabled, which leaves bridge networks offline.
+    network_mode: host
+
+volumes:
+  node_modules:

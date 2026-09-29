@@ -1,3 +1,5 @@
+import { EXTRA_HTTP_SOURCES } from './extra-sources';
+
 // The source registry: the only place any third-party service this
 // extension may contact is listed. The selection UI, the checks, the
 // disclosure copy and the e2e network allowlist all derive from it - see
@@ -264,6 +266,7 @@ export const HTTP_SOURCES: HttpSource[] = [
     ipDataVendor: true,
     recommended: false,
   },
+  ...EXTRA_HTTP_SOURCES,
 ];
 
 // Independent operators (not just independent hostnames) on purpose: a
