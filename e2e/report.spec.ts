@@ -55,3 +55,18 @@ test('reuses the popup check instead of contacting every service again', async (
   const sourceHosts = allowedHosts(recommendedSelection());
   expect([...hosts].filter((host) => sourceHosts.some((s) => host === s || host.endsWith(`.${s}`)))).toEqual([]);
 });
+
+test('still finishes when WebRTC never answers (e.g. a stubbed API)', async ({ context, extensionId }) => {
+  // What a WebRTC-blocking extension that stubs the API instead of removing
+  // it looks like: an RTCPeerConnection whose offer never comes.
+  await context.addInitScript(() => {
+    RTCPeerConnection.prototype.createOffer = () => new Promise(() => {});
+  });
+
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/report.html`);
+
+  await expect(page.locator('#checked-at')).toContainText('checked at', { timeout: 20_000 });
+  await expect(page.locator('#row-webrtc .lc-row-value')).toHaveText('webrtc not responding');
+  await expect(page.locator('#row-ipv4 .lc-row-value')).not.toHaveText('checking');
+});

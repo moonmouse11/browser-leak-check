@@ -1,4 +1,5 @@
 import {
+  HTTP_SOURCE_TIMEOUT_MS,
   DNS_SOURCE,
   DNS_LEAK_PROBE_COUNT,
   DNS_LEAK_PROBE_TIMEOUT_MS,
@@ -34,13 +35,31 @@ interface BashWsEntry {
 
 const PROBE_DOMAIN = new URL(DNS_SOURCE.url).host;
 
-async function fetchSessionId(): Promise<string> {
-  const response = await fetch(`${DNS_SOURCE.url}/id`);
-  if (!response.ok) throw new Error(`bash.ws id request failed: ${response.status}`);
+// Runs a request and reads its body within timeoutMs, or rejects: a
+// bash.ws that accepts the connection but never answers must end up as
+// "failed", not hold up every page that waits for this check.
+async function bounded<T>(timeoutMs: number, request: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const aborted = new Promise<never>((_, reject) => {
+    controller.signal.addEventListener('abort', () => reject(new Error('bash.ws request timed out')));
+  });
+  try {
+    return await Promise.race([request(controller.signal), aborted]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
-  const id = (await response.text()).trim();
-  if (!id) throw new Error('bash.ws returned an empty test id');
-  return id;
+function fetchSessionId(timeoutMs: number): Promise<string> {
+  return bounded(timeoutMs, async (signal) => {
+    const response = await fetch(`${DNS_SOURCE.url}/id`, { signal });
+    if (!response.ok) throw new Error(`bash.ws id request failed: ${response.status}`);
+
+    const id = (await response.text()).trim();
+    if (!id) throw new Error('bash.ws returned an empty test id');
+    return id;
+  });
 }
 
 // Every probe's connection is expected to fail (the TLS certificate doesn't
@@ -68,10 +87,12 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchResults(id: string): Promise<BashWsEntry[]> {
-  const response = await fetch(`${DNS_SOURCE.url}/dnsleak/test/${id}?json`);
-  if (!response.ok) throw new Error(`bash.ws results request failed: ${response.status}`);
-  return response.json();
+function fetchResults(id: string, timeoutMs: number): Promise<BashWsEntry[]> {
+  return bounded(timeoutMs, async (signal) => {
+    const response = await fetch(`${DNS_SOURCE.url}/dnsleak/test/${id}?json`, { signal });
+    if (!response.ok) throw new Error(`bash.ws results request failed: ${response.status}`);
+    return response.json();
+  });
 }
 
 // bash.ws exposes no boolean/enum leak field, only free text. These rules
@@ -83,12 +104,14 @@ function classifyConclusion(text: string): DnsLeakStatus {
   return 'unknown';
 }
 
-export async function detectDnsLeak(): Promise<DnsLeakResult> {
+export async function detectDnsLeak({
+  timeoutMs = HTTP_SOURCE_TIMEOUT_MS,
+}: { timeoutMs?: number } = {}): Promise<DnsLeakResult> {
   try {
-    const id = await fetchSessionId();
+    const id = await fetchSessionId(timeoutMs);
     await fireProbes(id, DNS_LEAK_PROBE_COUNT);
     await delay(DNS_LEAK_RESULT_DELAY_MS);
-    const entries = await fetchResults(id);
+    const entries = await fetchResults(id, timeoutMs);
 
     const resolvers: DnsResolver[] = entries
       .filter((entry) => entry.type === 'dns')

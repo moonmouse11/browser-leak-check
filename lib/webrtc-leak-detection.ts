@@ -29,12 +29,16 @@ export interface StunServerResult {
 //   so reflexive candidates had nothing to be compared against.
 // - webrtc-disabled: the browser (or a privacy extension) refused to create
 //   an RTCPeerConnection - the protected state, not an error.
+// - webrtc-unresponsive: an RTCPeerConnection was created but never
+//   produced an offer (e.g. an extension stubbed the API). Nothing proves
+//   WebRTC is blocked, so this isn't reported as the protected state.
 // - off: the user's source selection contains no STUN server.
 export type WebrtcLeakStatus =
   | 'leak-detected'
   | 'no-leak'
   | 'no-connection'
   | 'webrtc-disabled'
+  | 'webrtc-unresponsive'
   | 'off';
 
 export interface WebrtcLeakResult {
@@ -43,7 +47,12 @@ export interface WebrtcLeakResult {
   servers: StunServerResult[];
 }
 
+// Bounds each connection end to end - offer, local description and
+// candidate gathering - so the check always finishes, whatever the browser
+// does. Pages wait for every check before caching results.
 const GATHERING_TIMEOUT_MS = 5000;
+
+class WebrtcTimeoutError extends Error {}
 
 // Chrome and Firefox replace raw host IPs with random `<uuid>.local` mDNS
 // names by default - that's the browser's own WebRTC protection, and the
@@ -95,16 +104,19 @@ type GatheredCandidate = Pick<WebrtcCandidate, 'type' | 'address'>;
 export async function detectWebrtcLeak(
   servers: StunSource[],
   publicIps: string[] | Promise<string[]> = [],
+  { timeoutMs = GATHERING_TIMEOUT_MS }: { timeoutMs?: number } = {},
 ): Promise<WebrtcLeakResult> {
   if (servers.length === 0) return { status: 'off', candidates: [], servers: [] };
 
-  const outcomes = await Promise.allSettled(servers.map((server) => gatherCandidates(server.url)));
+  const outcomes = await Promise.allSettled(servers.map((server) => gatherCandidates(server.url, timeoutMs)));
 
   // Firefox with media.peerconnection.enabled=false has no
-  // RTCPeerConnection at all; WebRTC-blocking extensions make it throw.
+  // RTCPeerConnection at all; WebRTC-blocking extensions make it throw -
+  // or, if they stub it, never answer.
   if (outcomes.every((outcome) => outcome.status === 'rejected')) {
+    const hung = outcomes.every((outcome) => outcome.status === 'rejected' && outcome.reason instanceof WebrtcTimeoutError);
     return {
-      status: 'webrtc-disabled',
+      status: hung ? 'webrtc-unresponsive' : 'webrtc-disabled',
       candidates: [],
       servers: servers.map((server) => ({ serverId: server.id, status: 'unavailable', addresses: [] })),
     };
@@ -148,13 +160,20 @@ export async function detectWebrtcLeak(
   return { status, candidates, servers: serverResults };
 }
 
-async function gatherCandidates(stunUrl: string): Promise<GatheredCandidate[]> {
+async function gatherCandidates(stunUrl: string, timeoutMs: number): Promise<GatheredCandidate[]> {
   const pc = new RTCPeerConnection({ iceServers: [{ urls: stunUrl }] });
   const gathered: GatheredCandidate[] = [];
   const seen = new Set<string>();
 
+  // Gathering that starts but doesn't finish in time keeps what it found;
+  // an offer that never comes is a failure (see WebrtcTimeoutError).
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    deadlineTimer = setTimeout(() => reject(new WebrtcTimeoutError('no offer')), timeoutMs);
+  });
+
   const gatheringDone = new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, GATHERING_TIMEOUT_MS);
+    const timer = setTimeout(resolve, timeoutMs);
 
     pc.onicecandidate = (event) => {
       const candidate = event.candidate;
@@ -176,10 +195,18 @@ async function gatherCandidates(stunUrl: string): Promise<GatheredCandidate[]> {
 
   try {
     pc.createDataChannel('leak-probe');
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
+    await Promise.race([
+      (async () => {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+      })(),
+      deadline,
+    ]);
+    // The offer is in: from here gatheringDone's own timer bounds the wait.
+    clearTimeout(deadlineTimer);
     await gatheringDone;
   } finally {
+    clearTimeout(deadlineTimer);
     pc.close();
   }
 

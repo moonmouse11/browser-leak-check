@@ -70,6 +70,8 @@ export function webrtcStatus(result: WebrtcLeakResult): StatusDisplay {
       return { text: 'no leak detected', variant: 'ok' };
     case 'webrtc-disabled':
       return { text: 'webrtc disabled', variant: 'ok' };
+    case 'webrtc-unresponsive':
+      return { text: 'webrtc not responding', variant: 'warn' };
     case 'no-connection':
       return { text: 'no connection (ip-echo unreachable)', variant: 'warn' };
     case 'off':
