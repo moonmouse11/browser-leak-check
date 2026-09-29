@@ -134,6 +134,46 @@ E2E tests load the actual built extension (run `npm run build` first) in
 Chrome's new headless mode, so no window opens and no display is needed.
 Set `PWHEADED=1` to watch a run in a real window.
 
+## Checking sources
+
+The extension depends on free third-party services that can drop CORS,
+change their response format or go offline. `npm run check:sources`
+checks every source in `lib/config.ts` the way the extension uses it:
+
+- **IP-echo services** — requested with an extension `Origin`; the
+  response must allow that origin (CORS), parse with the extension's own
+  parser, and carry an ASN exactly when the registry says it does.
+- **STUN servers** — a real STUN Binding Request over UDP, per IP family.
+- **bash.ws** — the DNS-leak test-id endpoint answers with CORS.
+
+```bash
+npm run check:sources                   # table; exit code 1 if a source failed
+npm run check:sources -- --candidates   # also the IPv6-only candidates
+npm run -s check:sources -- --json      # machine-readable, for CI (-s keeps
+                                        # npm's banner out of stdout)
+```
+
+Every checked service sees the IP address of the machine running the
+script. Sources the machine can't reach for lack of IPv6 (or IPv4) are
+reported as `skipped`, not `failed`.
+
+### IPv6 candidates from a dual-stack VPS
+
+IPv6-only endpoints (`scripts/candidates.ts`) can only be verified from a
+machine with an IPv6 route. On a dual-stack VPS:
+
+```bash
+# needs Node 25.8.0 (see .node-version), e.g. via mise, nvm or fnm
+git clone <this repo> && cd leak-check
+npm ci
+npm run check:sources -- --candidates
+```
+
+A candidate that reports `ok` can move into `HTTP_SOURCES` in
+`lib/config.ts` unchanged; the unit tests then require a recorded sample
+response for it in `lib/ip-sources.samples.ts` and a row for its host in
+the Privacy table above.
+
 ## Project structure
 
 ```
