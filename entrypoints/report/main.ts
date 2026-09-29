@@ -17,21 +17,64 @@ function statusRow(id: string, label: string): string {
   `;
 }
 
+// Built as DOM nodes, not an HTML string: the user agent and WebGL renderer
+// are arbitrary strings (a UA override or GPU driver can put markup in them).
 function signalRow<T>(
   id: string,
   label: string,
   signal: FingerprintSignal<T>,
   toText?: (value: T) => string,
-): string {
-  const text = formatSignal(signal, toText);
-  const variant = signal.available ? 'info' : 'warn';
-  return `
-    <div class="lc-row" id="${id}">
-      <span class="lc-row-label">${label}</span>
-      <span class="lc-row-value lc-mono">${text}</span>
-      <span class="lc-badge" data-variant="${variant}"></span>
-    </div>
-  `;
+): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'lc-row';
+  row.id = id;
+
+  const labelSpan = document.createElement('span');
+  labelSpan.className = 'lc-row-label';
+  labelSpan.textContent = label;
+
+  const valueSpan = document.createElement('span');
+  valueSpan.className = 'lc-row-value lc-mono';
+  valueSpan.textContent = formatSignal(signal, toText);
+
+  const badge = document.createElement('span');
+  badge.className = 'lc-badge';
+  badge.setAttribute('data-variant', signal.available ? 'info' : 'warn');
+
+  row.append(labelSpan, valueSpan, badge);
+  return row;
+}
+
+function renderWebrtcCandidates(list: Element, candidates: { type: string; address: string; leak: boolean }[]): void {
+  list.replaceChildren(
+    ...candidates.map((candidate) => {
+      const li = document.createElement('li');
+      li.className = 'lc-tag lc-mono';
+      li.setAttribute('data-leak', String(candidate.leak));
+      const typeSpan = document.createElement('span');
+      typeSpan.className = 'lc-tag-type';
+      typeSpan.textContent = candidate.type;
+      li.append(typeSpan, candidate.address);
+      return li;
+    }),
+  );
+}
+
+function renderDnsResolvers(list: Element, resolvers: { ip: string; countryName: string }[]): void {
+  list.replaceChildren(
+    ...resolvers.map((resolver) => {
+      const li = document.createElement('li');
+      li.className = 'lc-tag lc-mono';
+      li.append(document.createTextNode(resolver.ip));
+      if (resolver.countryName) {
+        const countrySpan = document.createElement('span');
+        countrySpan.className = 'lc-tag-type';
+        countrySpan.textContent = resolver.countryName;
+        li.append(' ', countrySpan);
+      }
+      return li;
+    }),
+  );
 }
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -85,27 +128,17 @@ publicIp.then((result) => {
 detectWebrtcLeak(publicIp.then(detectedAddresses)).then((result) => {
   renderStatusRow('row-webrtc', webrtcStatus(result));
 
-  document.querySelector('#webrtc-candidates')!.innerHTML = result.candidates
-    .map(
-      (candidate) =>
-        `<li class="lc-tag lc-mono" data-leak="${candidate.leak}"><span class="lc-tag-type">${candidate.type}</span>${candidate.address}</li>`,
-    )
-    .join('');
+  renderWebrtcCandidates(document.querySelector('#webrtc-candidates')!, result.candidates);
 });
 
 detectDnsLeak().then((result) => {
   renderStatusRow('row-dns', dnsStatus(result));
 
-  document.querySelector('#dns-resolvers')!.innerHTML = result.resolvers
-    .map(
-      (resolver) =>
-        `<li class="lc-tag lc-mono">${resolver.ip}${resolver.countryName ? ` <span class="lc-tag-type">${resolver.countryName}</span>` : ''}</li>`,
-    )
-    .join('');
+  renderDnsResolvers(document.querySelector('#dns-resolvers')!, result.resolvers);
 });
 
 collectFingerprintSurface().then((surface) => {
-  document.querySelector('#fingerprint')!.innerHTML = [
+  document.querySelector('#fingerprint')!.replaceChildren(
     signalRow('sig-ua', 'user agent', surface.userAgent),
     signalRow('sig-platform', 'platform', surface.platform),
     signalRow('sig-screen', 'screen', surface.screenResolution),
@@ -114,5 +147,5 @@ collectFingerprintSurface().then((surface) => {
     signalRow('sig-canvas', 'canvas hash', surface.canvasHash),
     signalRow('sig-webgl', 'webgl', surface.webgl, (v) => `${v.vendor} / ${v.renderer}`),
     signalRow('sig-audio', 'audio fp', surface.audioFingerprint),
-  ].join('');
+  );
 });

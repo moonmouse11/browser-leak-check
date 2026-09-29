@@ -44,7 +44,7 @@ describe('detectWebrtcLeak', () => {
 
     const result = await detectWebrtcLeak(['203.0.113.9']);
 
-    expect(result.leakDetected).toBe(true);
+    expect(result.status).toBe('leak-detected');
     expect(result.candidates).toEqual([
       { type: 'host', address: '192.168.1.5', leak: true },
       { type: 'srflx', address: '203.0.113.9', leak: false },
@@ -54,9 +54,9 @@ describe('detectWebrtcLeak', () => {
   it('reports no leak when gathering completes with no candidates', async () => {
     installFakeRTCPeerConnection([null]);
 
-    const result = await detectWebrtcLeak();
+    const result = await detectWebrtcLeak(['198.51.100.7']);
 
-    expect(result.leakDetected).toBe(false);
+    expect(result.status).toBe('no-leak');
     expect(result.candidates).toEqual([]);
   });
 
@@ -69,7 +69,7 @@ describe('detectWebrtcLeak', () => {
 
     const result = await detectWebrtcLeak(['198.51.100.7']);
 
-    expect(result.leakDetected).toBe(false);
+    expect(result.status).toBe('no-leak');
   });
 
   it('flags a reflexive address that differs from the IP-echo result', async () => {
@@ -81,7 +81,7 @@ describe('detectWebrtcLeak', () => {
 
     const result = await detectWebrtcLeak(Promise.resolve(['198.51.100.7']));
 
-    expect(result.leakDetected).toBe(true);
+    expect(result.status).toBe('leak-detected');
     expect(result.candidates.filter((c) => c.leak).map((c) => c.address)).toEqual([
       '203.0.113.9',
     ]);
@@ -97,6 +97,45 @@ describe('detectWebrtcLeak', () => {
     const result = await detectWebrtcLeak();
 
     expect(result.candidates).toEqual([{ type: 'srflx', address: '203.0.113.9', leak: false }]);
+  });
+
+  it('reports no connection when the IP-echo service gave nothing to compare against', async () => {
+    installFakeRTCPeerConnection([{ type: 'srflx', address: '203.0.113.9' }, null]);
+
+    const result = await detectWebrtcLeak([]);
+
+    expect(result.status).toBe('no-connection');
+  });
+
+  it('still reports a host leak when the IP-echo service is unreachable', async () => {
+    installFakeRTCPeerConnection([{ type: 'host', address: '192.168.1.5' }, null]);
+
+    const result = await detectWebrtcLeak(Promise.reject(new Error('offline')));
+
+    expect(result.status).toBe('leak-detected');
+  });
+
+  it('reports webrtc as disabled when RTCPeerConnection does not exist', async () => {
+    vi.stubGlobal('RTCPeerConnection', undefined);
+
+    const result = await detectWebrtcLeak(['198.51.100.7']);
+
+    expect(result).toEqual({ status: 'webrtc-disabled', candidates: [] });
+  });
+
+  it('reports webrtc as disabled when RTCPeerConnection throws', async () => {
+    vi.stubGlobal(
+      'RTCPeerConnection',
+      class {
+        constructor() {
+          throw new Error('blocked by extension');
+        }
+      },
+    );
+
+    const result = await detectWebrtcLeak(['198.51.100.7']);
+
+    expect(result.status).toBe('webrtc-disabled');
   });
 
   it('makes no fetch calls of its own', async () => {

@@ -8,7 +8,7 @@ export default defineConfig({
   manifest: {
     name: 'Leak Check',
     description:
-      'Check your public IPv4/IPv6, WebRTC leaks, and browser fingerprint surface.',
+      'Check your public IPv4/IPv6, WebRTC and DNS leaks, and browser fingerprint surface.',
     // Placeholder domain - Firefox requires an id for MV3 (see the build
     // warning without it). Revisit before any AMO submission.
     browser_specific_settings: {

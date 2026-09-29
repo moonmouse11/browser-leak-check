@@ -20,7 +20,7 @@ export const STUN_SERVERS: RTCIceServer[] = [
 ];
 
 // bash.ws's public DNS-leak-test service - see
-// openspec/changes/dns-leak-bashws/design.md for why we reuse it instead
+// openspec/changes/archive/2026-09-27-dns-leak-bashws/design.md for why we reuse it instead
 // of operating our own authoritative DNS server (Path A vs Path B).
 export const DNS_LEAK_BASE_URL = 'https://bash.ws';
 
@@ -35,7 +35,7 @@ export const DNS_LEAK_PROBE_COUNT = 6;
 // all that matters. This bounds how long we wait for that doomed connection.
 export const DNS_LEAK_PROBE_TIMEOUT_MS = 1500;
 
-// Fixed buffer between firing probes and reading results - DNS lookups over
-// UDP are near-instant, this just gives them time to land before we ask
-// bash.ws what it saw.
+// Buffer between the last probe settling and reading results - the lookups
+// themselves are done by then, this just gives bash.ws time to record them
+// before we ask what it saw.
 export const DNS_LEAK_RESULT_DELAY_MS = 800;

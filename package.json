@@ -1,6 +1,6 @@
 {
   "name": "leak-check",
-  "description": "Check your public IPv4/IPv6, WebRTC leaks, and browser fingerprint surface.",
+  "description": "Check your public IPv4/IPv6, WebRTC and DNS leaks, and browser fingerprint surface.",
   "private": true,
   "version": "0.0.0",
   "type": "module",

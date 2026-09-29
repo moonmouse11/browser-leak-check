@@ -40,19 +40,25 @@ async function fetchSessionId(): Promise<string> {
   return id;
 }
 
-// Fire-and-forget on purpose: every probe's connection is expected to fail
-// (the TLS certificate doesn't cover probe subdomains), but the DNS lookup
-// bash.ws needs has already happened by the time that failure arrives, so
-// the caller never needs to wait for or inspect these results.
-function fireProbes(id: string, count: number): void {
-  for (let i = 1; i <= count; i++) {
+// Every probe's connection is expected to fail (the TLS certificate doesn't
+// cover probe subdomains), but the DNS lookup bash.ws needs has already
+// happened by the time that failure arrives. So a settled probe means its
+// lookup is done - the returned promise resolves once all of them have
+// settled (each bounded by DNS_LEAK_PROBE_TIMEOUT_MS), and never rejects.
+async function fireProbes(id: string, count: number): Promise<void> {
+  const probes = Array.from({ length: count }, (_, index) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), DNS_LEAK_PROBE_TIMEOUT_MS);
 
-    fetch(`https://${i}.${id}.bash.ws`, { mode: 'no-cors', signal: controller.signal })
+    return fetch(`https://${index + 1}.${id}.bash.ws`, {
+      mode: 'no-cors',
+      signal: controller.signal,
+    })
       .catch(() => {})
       .finally(() => clearTimeout(timer));
-  }
+  });
+
+  await Promise.all(probes);
 }
 
 function delay(ms: number): Promise<void> {
@@ -77,7 +83,7 @@ function classifyConclusion(text: string): DnsLeakStatus {
 export async function detectDnsLeak(): Promise<DnsLeakResult> {
   try {
     const id = await fetchSessionId();
-    fireProbes(id, DNS_LEAK_PROBE_COUNT);
+    await fireProbes(id, DNS_LEAK_PROBE_COUNT);
     await delay(DNS_LEAK_RESULT_DELAY_MS);
     const entries = await fetchResults(id);
 

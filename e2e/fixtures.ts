@@ -39,8 +39,13 @@ export const test = base.extend<{
 }>({
   context: async ({}, use) => {
     const userDataDir = mkdtempSync(path.join(tmpdir(), 'leak-extension-pw-'));
+    // Playwright's bundled "chromium" channel runs Chrome's new headless
+    // mode, which (unlike the old headless shell) supports loading
+    // extensions - so no window pops up during a run. PWHEADED=1 brings the
+    // window back for debugging.
     const context = await chromium.launchPersistentContext(userDataDir, {
-      headless: false,
+      channel: 'chromium',
+      headless: !process.env.PWHEADED,
       args: [
         `--disable-extensions-except=${extensionPath}`,
         `--load-extension=${extensionPath}`,

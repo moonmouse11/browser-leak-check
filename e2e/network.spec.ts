@@ -1,9 +1,17 @@
+import type { BrowserContext } from '@playwright/test';
 import { expect, test } from './fixtures';
 
-test('report page contacts only the documented third-party hosts', async ({
-  context,
-  extensionId,
-}) => {
+function isDocumentedHost(host: string, extensionId: string): boolean {
+  return (
+    host === extensionId ||
+    host === 'api.ipify.org' ||
+    host === 'api6.ipify.org' ||
+    host === 'bash.ws' ||
+    host.endsWith('.bash.ws')
+  );
+}
+
+function recordHosts(context: BrowserContext): Set<string> {
   const requestedHosts = new Set<string>();
   context.on('request', (request) => {
     try {
@@ -12,23 +20,24 @@ test('report page contacts only the documented third-party hosts', async ({
       // ignore non-URL requests
     }
   });
+  return requestedHosts;
+}
 
-  const page = await context.newPage();
-  await page.goto(`chrome-extension://${extensionId}/report.html`);
+for (const pageName of ['popup', 'report']) {
+  test(`${pageName} page contacts only the documented third-party hosts`, async ({
+    context,
+    extensionId,
+  }) => {
+    const requestedHosts = recordHosts(context);
 
-  await expect(page.locator('#row-dns .lc-row-value')).not.toHaveText('checking', {
-    timeout: 15_000,
+    const page = await context.newPage();
+    await page.goto(`chrome-extension://${extensionId}/${pageName}.html`);
+
+    await expect(page.locator('#row-dns .lc-row-value')).not.toHaveText('checking', {
+      timeout: 15_000,
+    });
+
+    const unexpected = [...requestedHosts].filter((host) => !isDocumentedHost(host, extensionId));
+    expect(unexpected).toEqual([]);
   });
-
-  const extensionHost = `${extensionId}`;
-  const unexpected = [...requestedHosts].filter(
-    (host) =>
-      host !== extensionHost &&
-      host !== 'api.ipify.org' &&
-      host !== 'api6.ipify.org' &&
-      host !== 'bash.ws' &&
-      !host.endsWith('.bash.ws'),
-  );
-
-  expect(unexpected).toEqual([]);
-});
+}

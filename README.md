@@ -11,6 +11,10 @@ browserleaks.com, but running locally as an extension instead of a website.
 - **WebRTC leaks** — gathers ICE candidates against several independent
   public STUN servers to surface local/public addresses that bypass a VPN
   tunnel.
+- **DNS leaks** — asks bash.ws which DNS resolvers answered a handful of
+  unique lookups from this browser, to catch queries that bypass the VPN's
+  resolver. This tests the browser's DNS path, not other apps on the
+  machine.
 - **Fingerprint surface** — raw signals a tracker could see: user agent,
   platform, screen, timezone, languages, canvas hash, WebGL renderer/vendor,
   audio fingerprint. No uniqueness score — just the raw signals.
@@ -22,26 +26,31 @@ page with every signal above.
 
 This is the whole point of the tool, so it's disclosed precisely:
 
-- The only **application-level** network request is a `fetch()` to an
-  IP-echo service (`api.ipify.org` / `api6.ipify.org`), used solely to
-  learn your public IP.
+- **Application-level** network requests go to exactly two services:
+  - an IP-echo service (`api.ipify.org` / `api6.ipify.org`), used solely
+    to learn your public IP;
+  - [bash.ws](https://bash.ws), a public DNS-leak-test service: one
+    request for a test id, a handful of probe lookups on
+    `<n>.<id>.bash.ws`, and one request for the result. bash.ws therefore
+    sees your public IP and which DNS resolvers answered for you. This
+    runs every time the popup or report page opens.
 - WebRTC leak detection additionally performs a STUN handshake with one or
   more public STUN servers (Google, Cloudflare, Open Relay Project) — not
   an HTTP request, but a real network touchpoint, so it's called out here
   and in the product UI.
 - No collected signal (IP, WebRTC candidates, or fingerprint data) is ever
-  sent anywhere else. There is no backend and no analytics in this phase.
+  sent anywhere else. There is no backend of our own and no analytics.
 
 See [`openspec/changes/leak-detector-mvp/design.md`](openspec/changes/leak-detector-mvp/design.md)
 for the full reasoning behind these decisions.
 
 ## Status
 
-Phase 1 (MVP, this repo's current state) is implemented and tested — see
-[`PLAN.md`](PLAN.md) for the phased roadmap (Phase 2: DNS leak test,
-Phase 3: store publishing) and
-[`openspec/changes/leak-detector-mvp/`](openspec/changes/leak-detector-mvp/)
-for the spec this implementation follows.
+Phase 1 (MVP) and the DNS leak test (via bash.ws rather than our own DNS
+server) are implemented and tested — see [`PLAN.md`](PLAN.md) for the
+phased roadmap (Phase 3: store publishing) and
+[`openspec/changes/`](openspec/changes/) for the specs this implementation
+follows.
 
 ## Getting started
 
@@ -75,9 +84,9 @@ npm run compile  # type-check
 npm run test:e2e # E2E (Playwright, loads the real Chrome extension)
 ```
 
-E2E tests load the actual built extension in a real (headed) Chrome
-window, so they need a display — run under `xvfb-run` in a headless CI
-environment.
+E2E tests load the actual built extension (run `npm run build` first) in
+Chrome's new headless mode, so no window opens and no display is needed.
+Set `PWHEADED=1` to watch a run in a real window.
 
 ## Project structure
 

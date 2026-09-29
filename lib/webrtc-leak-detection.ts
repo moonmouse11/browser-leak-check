@@ -8,8 +8,16 @@ export interface WebrtcCandidate {
   leak: boolean;
 }
 
+// - leak-detected: at least one candidate exposes something (see
+//   isLeakingCandidate).
+// - no-connection: nothing leaked, but the IP-echo service was unreachable,
+//   so reflexive candidates had nothing to be compared against.
+// - webrtc-disabled: the browser (or a privacy extension) refused to create
+//   an RTCPeerConnection - the protected state, not an error.
+export type WebrtcLeakStatus = 'leak-detected' | 'no-leak' | 'no-connection' | 'webrtc-disabled';
+
 export interface WebrtcLeakResult {
-  leakDetected: boolean;
+  status: WebrtcLeakStatus;
   candidates: WebrtcCandidate[];
 }
 
@@ -27,7 +35,8 @@ function isMdnsHostname(address: string): boolean {
 //   even when it doesn't bypass the VPN.
 // - srflx/prflx: a public address the IP-echo service didn't see, i.e. one
 //   that routed around the VPN. Without an IP-echo result there's nothing
-//   to compare against, so it isn't flagged rather than guessed at.
+//   to compare against, so it isn't flagged here - detectWebrtcLeak reports
+//   that case as "no-connection" instead.
 // - relay: only produced by TURN servers, which we don't configure.
 export function isLeakingCandidate(
   candidate: Pick<WebrtcCandidate, 'type' | 'address'>,
@@ -57,6 +66,29 @@ export function isLeakingCandidate(
 export async function detectWebrtcLeak(
   publicIps: string[] | Promise<string[]> = [],
 ): Promise<WebrtcLeakResult> {
+  let gathered: Pick<WebrtcCandidate, 'type' | 'address'>[];
+  try {
+    gathered = await gatherCandidates();
+  } catch {
+    // Firefox with media.peerconnection.enabled=false has no
+    // RTCPeerConnection at all; WebRTC-blocking extensions make it throw.
+    return { status: 'webrtc-disabled', candidates: [] };
+  }
+
+  const expected = await Promise.resolve(publicIps).catch(() => []);
+  const candidates = gathered.map((candidate) => ({
+    ...candidate,
+    leak: isLeakingCandidate(candidate, expected),
+  }));
+
+  let status: WebrtcLeakStatus = 'no-leak';
+  if (candidates.some((candidate) => candidate.leak)) status = 'leak-detected';
+  else if (expected.length === 0) status = 'no-connection';
+
+  return { status, candidates };
+}
+
+async function gatherCandidates(): Promise<Pick<WebrtcCandidate, 'type' | 'address'>[]> {
   const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
   const gathered: Pick<WebrtcCandidate, 'type' | 'address'>[] = [];
   const seen = new Set<string>();
@@ -91,11 +123,5 @@ export async function detectWebrtcLeak(
     pc.close();
   }
 
-  const expected = await publicIps;
-  const candidates = gathered.map((candidate) => ({
-    ...candidate,
-    leak: isLeakingCandidate(candidate, expected),
-  }));
-
-  return { leakDetected: candidates.some((candidate) => candidate.leak), candidates };
+  return gathered;
 }
