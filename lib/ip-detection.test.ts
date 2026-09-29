@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { detectPublicIp } from './ip-detection';
+import { detectedAddresses, detectPublicIp } from './ip-detection';
 
 function jsonResponse(body: unknown): Response {
   return { ok: true, json: async () => body } as Response;
@@ -45,5 +45,16 @@ describe('detectPublicIp', () => {
 
     expect(result.v4).toEqual({ status: 'failed' });
     expect(result.v6).toEqual({ status: 'failed' });
+  });
+});
+
+describe('detectedAddresses', () => {
+  it('returns only the addresses that were actually detected', () => {
+    expect(
+      detectedAddresses({
+        v4: { status: 'detected', address: '1.2.3.4' },
+        v6: { status: 'not-detected' },
+      }),
+    ).toEqual(['1.2.3.4']);
   });
 });

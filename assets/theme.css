@@ -258,6 +258,11 @@ body {
   padding: 2px 7px;
 }
 
+.lc-tag[data-leak='true'] {
+  border-color: var(--lc-bad);
+  color: var(--lc-bad);
+}
+
 .lc-tag::marker {
   content: '';
 }

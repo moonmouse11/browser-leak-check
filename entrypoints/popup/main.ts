@@ -1,7 +1,7 @@
 import '@/assets/theme.css';
 import './style.css';
 import { browser } from 'wxt/browser';
-import { detectPublicIp } from '@/lib/ip-detection';
+import { detectedAddresses, detectPublicIp } from '@/lib/ip-detection';
 import { detectWebrtcLeak } from '@/lib/webrtc-leak-detection';
 import { detectDnsLeak } from '@/lib/dns-leak-detection';
 import { dnsStatus, ipStatus, webrtcStatus } from '@/lib/format';
@@ -42,12 +42,14 @@ document.querySelector<HTMLButtonElement>('#details')!.addEventListener('click',
   browser.tabs.create({ url: browser.runtime.getURL('/report.html') });
 });
 
-detectPublicIp().then((result) => {
+const publicIp = detectPublicIp();
+
+publicIp.then((result) => {
   renderStatusRow('row-ipv4', ipStatus(result.v4), true);
   renderStatusRow('row-ipv6', ipStatus(result.v6), true);
 });
 
-detectWebrtcLeak().then((result) => {
+detectWebrtcLeak(publicIp.then(detectedAddresses)).then((result) => {
   renderStatusRow('row-webrtc', webrtcStatus(result));
 });
 

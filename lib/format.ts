@@ -26,7 +26,7 @@ export function ipStatus(result: IpLookupResult): StatusDisplay {
 
 export function webrtcStatus(result: WebrtcLeakResult): StatusDisplay {
   if (!result.leakDetected) return { text: 'no leak detected', variant: 'ok' };
-  const count = result.candidates.length;
+  const count = result.candidates.filter((candidate) => candidate.leak).length;
   return { text: `leak detected (${count} address${count === 1 ? '' : 'es'})`, variant: 'bad' };
 }
 

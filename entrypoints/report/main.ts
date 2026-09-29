@@ -1,6 +1,6 @@
 import '@/assets/theme.css';
 import './style.css';
-import { detectPublicIp } from '@/lib/ip-detection';
+import { detectedAddresses, detectPublicIp } from '@/lib/ip-detection';
 import { detectWebrtcLeak } from '@/lib/webrtc-leak-detection';
 import { detectDnsLeak } from '@/lib/dns-leak-detection';
 import { collectFingerprintSurface, type FingerprintSignal } from '@/lib/fingerprint-surface';
@@ -75,18 +75,20 @@ app.innerHTML = `
   </div>
 `;
 
-detectPublicIp().then((result) => {
+const publicIp = detectPublicIp();
+
+publicIp.then((result) => {
   renderStatusRow('row-ipv4', ipStatus(result.v4), true);
   renderStatusRow('row-ipv6', ipStatus(result.v6), true);
 });
 
-detectWebrtcLeak().then((result) => {
+detectWebrtcLeak(publicIp.then(detectedAddresses)).then((result) => {
   renderStatusRow('row-webrtc', webrtcStatus(result));
 
   document.querySelector('#webrtc-candidates')!.innerHTML = result.candidates
     .map(
       (candidate) =>
-        `<li class="lc-tag lc-mono"><span class="lc-tag-type">${candidate.type}</span>${candidate.address}</li>`,
+        `<li class="lc-tag lc-mono" data-leak="${candidate.leak}"><span class="lc-tag-type">${candidate.type}</span>${candidate.address}</li>`,
     )
     .join('');
 });

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { detectWebrtcLeak } from './webrtc-leak-detection';
+import { detectWebrtcLeak, isLeakingCandidate } from './webrtc-leak-detection';
 
 type FakeCandidate = { type: string; address: string } | null;
 
@@ -42,12 +42,12 @@ describe('detectWebrtcLeak', () => {
       null,
     ]);
 
-    const result = await detectWebrtcLeak();
+    const result = await detectWebrtcLeak(['203.0.113.9']);
 
     expect(result.leakDetected).toBe(true);
     expect(result.candidates).toEqual([
-      { type: 'host', address: '192.168.1.5' },
-      { type: 'srflx', address: '203.0.113.9' },
+      { type: 'host', address: '192.168.1.5', leak: true },
+      { type: 'srflx', address: '203.0.113.9', leak: false },
     ]);
   });
 
@@ -60,6 +60,33 @@ describe('detectWebrtcLeak', () => {
     expect(result.candidates).toEqual([]);
   });
 
+  it('reports no leak when only the VPN-assigned address and an mDNS host appear', async () => {
+    installFakeRTCPeerConnection([
+      { type: 'host', address: '0f3c9a2e-1b4d-4e5f-8a6b-7c8d9e0f1a2b.local' },
+      { type: 'srflx', address: '198.51.100.7' },
+      null,
+    ]);
+
+    const result = await detectWebrtcLeak(['198.51.100.7']);
+
+    expect(result.leakDetected).toBe(false);
+  });
+
+  it('flags a reflexive address that differs from the IP-echo result', async () => {
+    installFakeRTCPeerConnection([
+      { type: 'srflx', address: '198.51.100.7' },
+      { type: 'srflx', address: '203.0.113.9' },
+      null,
+    ]);
+
+    const result = await detectWebrtcLeak(Promise.resolve(['198.51.100.7']));
+
+    expect(result.leakDetected).toBe(true);
+    expect(result.candidates.filter((c) => c.leak).map((c) => c.address)).toEqual([
+      '203.0.113.9',
+    ]);
+  });
+
   it('still reports candidates when only some configured STUN servers respond', async () => {
     // A real RTCPeerConnection continues gathering from the servers that do
     // respond even if one configured STUN server is unreachable; this
@@ -69,7 +96,7 @@ describe('detectWebrtcLeak', () => {
 
     const result = await detectWebrtcLeak();
 
-    expect(result.candidates).toEqual([{ type: 'srflx', address: '203.0.113.9' }]);
+    expect(result.candidates).toEqual([{ type: 'srflx', address: '203.0.113.9', leak: false }]);
   });
 
   it('makes no fetch calls of its own', async () => {
@@ -80,5 +107,32 @@ describe('detectWebrtcLeak', () => {
     await detectWebrtcLeak();
 
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('isLeakingCandidate', () => {
+  it('treats a raw host IP as a leak, private ranges included', () => {
+    expect(isLeakingCandidate({ type: 'host', address: '192.168.1.5' }, [])).toBe(true);
+    expect(isLeakingCandidate({ type: 'host', address: 'fe80::1' }, [])).toBe(true);
+  });
+
+  it('does not treat an mDNS host candidate as a leak', () => {
+    expect(isLeakingCandidate({ type: 'host', address: 'abc.local' }, [])).toBe(false);
+  });
+
+  it('compares reflexive IPv6 addresses case-insensitively', () => {
+    expect(
+      isLeakingCandidate({ type: 'srflx', address: '2001:DB8::1' }, ['2001:db8::1']),
+    ).toBe(false);
+  });
+
+  it('does not flag a reflexive address when there is no IP-echo result to compare', () => {
+    expect(isLeakingCandidate({ type: 'prflx', address: '203.0.113.9' }, [])).toBe(false);
+  });
+
+  it('never flags relay candidates', () => {
+    expect(isLeakingCandidate({ type: 'relay', address: '203.0.113.9' }, ['1.2.3.4'])).toBe(
+      false,
+    );
   });
 });

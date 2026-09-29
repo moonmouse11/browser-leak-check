@@ -35,6 +35,14 @@ export async function detectPublicIp(): Promise<IpDetectionResult> {
   };
 }
 
+// The addresses the IP-echo service actually saw - what WebRTC's
+// server-reflexive candidates are expected to match when nothing leaks.
+export function detectedAddresses(result: IpDetectionResult): string[] {
+  return [result.v4, result.v6].flatMap((lookup) =>
+    lookup.status === 'detected' ? [lookup.address] : [],
+  );
+}
+
 function toLookupResult(
   outcome: PromiseSettledResult<string>,
   bothFailed: boolean,
