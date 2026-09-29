@@ -1,34 +1,21 @@
-import { expect, test } from './fixtures';
+import { expect, isAllowedHost, recordHosts, test } from './fixtures';
+import { recommendedSelection } from '../lib/selection';
 
-test('report page contacts only the documented third-party hosts', async ({
+test('a popup + report session contacts only the hosts of the saved selection', async ({
   context,
   extensionId,
 }) => {
-  const requestedHosts = new Set<string>();
-  context.on('request', (request) => {
-    try {
-      requestedHosts.add(new URL(request.url()).host);
-    } catch {
-      // ignore non-URL requests
-    }
-  });
+  const hosts = recordHosts(context);
 
-  const page = await context.newPage();
-  await page.goto(`chrome-extension://${extensionId}/report.html`);
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await expect(popup.locator('#row-dns .lc-row-value')).not.toHaveText('checking', { timeout: 15_000 });
 
-  await expect(page.locator('#row-dns .lc-row-value')).not.toHaveText('checking', {
-    timeout: 15_000,
-  });
+  const [report] = await Promise.all([context.waitForEvent('page'), popup.click('#details')]);
+  await report.getByRole('button', { name: 're-run checks' }).click();
+  await expect(report.locator('#row-dns .lc-row-value')).not.toHaveText('checking', { timeout: 15_000 });
+  await expect(report.locator('#checked-at')).toContainText('checked at', { timeout: 15_000 });
 
-  const extensionHost = `${extensionId}`;
-  const unexpected = [...requestedHosts].filter(
-    (host) =>
-      host !== extensionHost &&
-      host !== 'api.ipify.org' &&
-      host !== 'api6.ipify.org' &&
-      host !== 'bash.ws' &&
-      !host.endsWith('.bash.ws'),
-  );
-
-  expect(unexpected).toEqual([]);
+  const selection = recommendedSelection();
+  expect([...hosts].filter((host) => !isAllowedHost(host, selection, extensionId))).toEqual([]);
 });

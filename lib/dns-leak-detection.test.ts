@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DNS_LEAK_PROBE_COUNT } from './config';
 import { detectDnsLeak } from './dns-leak-detection';
 
 function textResponse(body: string, ok = true): Response {
@@ -94,6 +95,41 @@ describe('detectDnsLeak', () => {
       { ip: '109.195.129.5', countryName: 'Russian Federation', asn: 'AS56330 JSC ER-Telecom Holding' },
       { ip: '172.217.33.146', countryName: 'United States of America', asn: 'AS15169 Google LLC' },
     ]);
+  });
+
+  it('reads results only after every probe has settled', async () => {
+    let settledProbes = 0;
+    let settledBeforeResults = -1;
+    mockFetch(async (url) => {
+      if (url.endsWith('/id')) return textResponse('abc123');
+      if (url.includes(RESULT_URL_MARKER)) {
+        settledBeforeResults = settledProbes;
+        return jsonResponse([{ type: 'conclusion', ip: 'No leak detected.' }]);
+      }
+      // A slow resolver: the probe settles well after the fixed buffer alone
+      // would have elapsed.
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      settledProbes++;
+      throw new Error('TLS handshake failed');
+    });
+
+    await detectDnsLeak();
+
+    expect(settledBeforeResults).toBe(DNS_LEAK_PROBE_COUNT);
+  });
+
+  it('classifies a result with no conclusion entry as unknown', async () => {
+    mockFetch(async (url) => {
+      if (url.endsWith('/id')) return textResponse('abc123');
+      if (url.includes(RESULT_URL_MARKER)) {
+        return jsonResponse([{ type: 'dns', ip: '109.195.129.5', country_name: '', asn: '' }]);
+      }
+      return Promise.reject(new Error('unreachable'));
+    });
+
+    const result = await detectDnsLeak();
+
+    expect(result.status).toBe('unknown');
   });
 
   it('classifies an unrecognized conclusion string as unknown', async () => {

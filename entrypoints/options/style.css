@@ -1,0 +1,24 @@
+body {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+#app {
+  padding: 32px 20px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.lc-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lc-section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lc-accent);
+}

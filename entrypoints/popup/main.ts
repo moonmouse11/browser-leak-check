@@ -1,58 +1,55 @@
 import '@/assets/theme.css';
 import './style.css';
-import { browser } from 'wxt/browser';
-import { detectedAddresses, detectPublicIp } from '@/lib/ip-detection';
-import { detectWebrtcLeak } from '@/lib/webrtc-leak-detection';
-import { detectDnsLeak } from '@/lib/dns-leak-detection';
-import { dnsStatus, ipStatus, webrtcStatus } from '@/lib/format';
-import { renderStatusRow } from '@/lib/dom';
+import { loadSelection, recommendedSelection, saveSelection, type LoadedSelection } from '@/lib/selection';
+import { renderSelectionForm } from '@/lib/selection-form';
+import { localArea, sessionArea } from '@/lib/storage';
 
-function statusRow(id: string, label: string): string {
-  return `
-    <div class="lc-row" id="${id}">
-      <span class="lc-row-label">${label}</span>
-      <span class="lc-row-value lc-mono lc-row-value--pending">checking</span>
-      <span class="lc-badge" data-variant="pending"></span>
-    </div>
-  `;
-}
+// The consent gate. Nothing that contacts a third party is imported here:
+// the checks live in ./checks-view, loaded only once a valid selection
+// exists - so "no network contact before the user confirms" holds by
+// construction, not by remembering not to call something.
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
-app.innerHTML = `
-  <div>
+
+function header(command: string, comment: string): HTMLElement {
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
     <div class="lc-header">
-      <span class="lc-prompt">leak-check</span><span class="lc-prompt-sep">$</span> status<span class="lc-cursor"></span>
+      <span class="lc-prompt">leak-check</span><span class="lc-prompt-sep">$</span> ${command}<span class="lc-cursor"></span>
     </div>
-    <p class="lc-comment">privacy quick check</p>
-  </div>
+    <p class="lc-comment"></p>
+  `;
+  wrapper.querySelector('.lc-comment')!.textContent = comment;
+  return wrapper;
+}
 
-  <div class="lc-panel">
-    ${statusRow('row-ipv4', 'ipv4')}
-    ${statusRow('row-ipv6', 'ipv6')}
-    ${statusRow('row-webrtc', 'webrtc')}
-    ${statusRow('row-dns', 'dns')}
-  </div>
+async function showChecks(selected: string[]): Promise<void> {
+  const { renderPopupChecks } = await import('./checks-view');
+  renderPopupChecks(app, header('status', 'privacy quick check'), selected);
+}
 
-  <p class="lc-note">webrtc check contacts one or more public stun servers; dns check contacts bash.ws</p>
+function showSelection(previous: LoadedSelection | null): void {
+  const note = document.createElement('p');
+  note.className = 'lc-note';
+  note.textContent = previous
+    ? 'some of your selected services were removed in an update - pick at least 2 ip-echo services again'
+    : 'pick which services may see your ip address. nothing is contacted until you save';
 
-  <button id="details" class="lc-btn" type="button">more details</button>
-`;
+  const form = document.createElement('div');
+  app.replaceChildren(header('sources', 'first run: choose sources'), note, form);
 
-document.querySelector<HTMLButtonElement>('#details')!.addEventListener('click', () => {
-  browser.tabs.create({ url: browser.runtime.getURL('/report.html') });
-});
+  renderSelectionForm(form, {
+    selected: previous?.selected.length ? previous.selected : recommendedSelection(),
+    knownIds: previous?.knownIds ?? null,
+    saveLabel: 'save and run checks',
+    onSave: async (ids) => {
+      await saveSelection(ids, { local: localArea(), session: sessionArea() });
+      await showChecks(ids);
+    },
+  });
+}
 
-const publicIp = detectPublicIp();
-
-publicIp.then((result) => {
-  renderStatusRow('row-ipv4', ipStatus(result.v4), true);
-  renderStatusRow('row-ipv6', ipStatus(result.v6), true);
-});
-
-detectWebrtcLeak(publicIp.then(detectedAddresses)).then((result) => {
-  renderStatusRow('row-webrtc', webrtcStatus(result));
-});
-
-detectDnsLeak().then((result) => {
-  renderStatusRow('row-dns', dnsStatus(result));
+loadSelection(localArea()).then((selection) => {
+  if (selection?.valid) return showChecks(selection.selected);
+  showSelection(selection);
 });
