@@ -293,10 +293,12 @@ export const STUN_SOURCES: StunSource[] = [
   },
   {
     kind: 'stun',
-    id: 'stun-openrelay',
-    name: 'Open Relay STUN',
-    operator: 'Metered (Open Relay Project)',
-    url: 'stun:openrelay.metered.ca:80',
+    id: 'stun-nextcloud',
+    name: 'Nextcloud STUN',
+    operator: 'Nextcloud',
+    // Replaced openrelay.metered.ca:80, which stopped answering STUN
+    // Binding Requests (npm run check:sources, 2026-09-29).
+    url: 'stun:stun.nextcloud.com:3478',
     ipDataVendor: false,
     recommended: true,
   },

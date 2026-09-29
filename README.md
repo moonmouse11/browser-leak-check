@@ -64,12 +64,11 @@ commercial IP-intelligence businesses and may keep queries.
 | ipapi.is | `api.ipapi.is` | ipapi.is | yes | yes |
 
 WebRTC leak detection performs a STUN handshake (UDP, not HTTP) with each
-selected STUN server: `stun.l.google.com` (Google),
-`stun.cloudflare.com` (Cloudflare), `openrelay.metered.ca` (Metered /
-Open Relay Project). The DNS leak check talks to [bash.ws](https://bash.ws):
-one request for a test id, a handful of probe lookups on
-`<n>.<id>.bash.ws`, and one request for the result, so bash.ws sees your
-public IP and which DNS resolvers answered for you.
+selected STUN server: `stun.l.google.com` (Google), `stun.cloudflare.com`
+(Cloudflare), `stun.nextcloud.com` (Nextcloud). The DNS leak check talks
+to [bash.ws](https://bash.ws): one request for a test id, a handful of
+probe lookups on `<n>.<id>.bash.ws`, and one request for the result, so
+bash.ws sees your public IP and which DNS resolvers answered for you.
 
 Requests are sent without cookies (`credentials: 'omit'`), without a
 referrer and bypassing the HTTP cache. One check's results are kept in

@@ -162,7 +162,7 @@ describe('formatTable', () => {
     const table = formatTable(
       [
         { kind: 'http', id: 'ipify', candidate: false, status: 'ok', family: 'v4', address: '198.51.100.7' },
-        { kind: 'stun', id: 'stun-openrelay', candidate: false, status: 'failed', family: 'v4', reason: 'no response' },
+        { kind: 'stun', id: 'stun-nextcloud', candidate: false, status: 'failed', family: 'v4', reason: 'no response' },
         { kind: 'http', id: 'ipify-v6', candidate: true, status: 'skipped', reason: 'no ipv6' },
       ],
       { v4: true, v6: false },
@@ -170,6 +170,6 @@ describe('formatTable', () => {
 
     expect(table).toContain('connectivity: ipv4 yes, ipv6 no');
     expect(table).toContain('ipify-v6 (candidate)');
-    expect(table).toContain('2/3 ok or skipped; failed: stun-openrelay');
+    expect(table).toContain('2/3 ok or skipped; failed: stun-nextcloud');
   });
 });

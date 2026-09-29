@@ -63,7 +63,7 @@ describe('sourceRows', () => {
           servers: [
             { serverId: 'stun-google', status: 'ok', addresses: ['198.51.100.7'] },
             { serverId: 'stun-cloudflare', status: 'ok', addresses: ['203.0.113.9'] },
-            { serverId: 'stun-openrelay', status: 'no-response', addresses: [] },
+            { serverId: 'stun-nextcloud', status: 'no-response', addresses: [] },
           ],
         },
       }),
@@ -72,7 +72,7 @@ describe('sourceRows', () => {
     expect(rows.filter((row) => row.kind === 'stun').map(({ name, address, match }) => ({ name, address, match }))).toEqual([
       { name: 'Google STUN', address: '198.51.100.7', match: 'yes' },
       { name: 'Cloudflare STUN', address: '203.0.113.9', match: 'no' },
-      { name: 'Open Relay STUN', address: 'no response', match: '' },
+      { name: 'Nextcloud STUN', address: 'no response', match: '' },
     ]);
   });
 });
