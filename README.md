@@ -79,8 +79,11 @@ Known limits of this model:
 
 - If your VPN leaks, your real IP reaches every selected service, not one.
 - Browsers attach the extension's origin to these requests. In Chrome it
-  is the same for every install; Firefox's `moz-extension://` origin is
-  random per install and could act as a stable identifier.
+  is `chrome-extension://<extension id>`, the same for every install. In
+  Firefox it is `moz-extension://<internal UUID>` (measured by the Firefox
+  e2e suite), and that UUID is random per install - so every selected
+  service receives an identifier that stays the same across your checks
+  and is unique to your Firefox profile.
 - Many "what is my IP" lookups at once is a recognizable pattern to your
   ISP, VPN provider or DNS resolver.
 
@@ -132,6 +135,36 @@ npm run test:e2e # E2E (Playwright, loads the real Chrome extension)
 E2E tests load the actual built extension (run `npm run build` first) in
 Chrome's new headless mode, so no window opens and no display is needed.
 Set `PWHEADED=1` to watch a run in a real window.
+
+### Running tests in Docker
+
+`npm run test:docker` runs everything in a container - release and e2e
+builds, the release-build guard, unit tests, the Chromium e2e suite and the
+Firefox e2e suite - with one exit code. The host needs only Docker: the
+image (`Dockerfile.test`) brings Node 25.8.0, Playwright's Chromium,
+Firefox ESR and geckodriver, and keeps its own `node_modules` in a Docker
+volume, so the host's is never used or modified.
+
+```bash
+npm run test:docker
+```
+
+- The first run builds the image (~3.7 GB, a few minutes); later runs
+  reuse it and reinstall dependencies only when `package-lock.json`
+  changed.
+- The container uses the host's network, so tests see the same network
+  (VPN included) as the host, and it works where Docker's bridge networks
+  are offline.
+- Build output and `test-results/` land in the working tree, owned by you
+  (under rootless and rootful Docker alike).
+- `test-results/firefox-origin.txt` records the `Origin` header Firefox
+  sends from the extension, captured by a local echo source that exists
+  only in e2e builds (`.output-e2e/`); `npm run check:release` fails if it
+  ever reaches a release build in `.output/`.
+
+Playwright can't load extensions into Firefox, so the Firefox suite
+(`e2e-firefox/`) drives Firefox ESR with Selenium + geckodriver and only
+runs inside the container (`npm run test:e2e:firefox` there).
 
 ## Checking sources
 

@@ -9,7 +9,7 @@ ARG GECKODRIVER_SHA256=e815130ea95983e162ae91843b48d3a3ce991735635fce83a647afde2
 # Firefox ESR from Debian - a real Firefox that geckodriver can drive
 # (Playwright's own Firefox build can't load extensions).
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends firefox-esr zip \
+  && apt-get install -y --no-install-recommends firefox-esr \
   && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL -o /tmp/geckodriver.tar.gz \

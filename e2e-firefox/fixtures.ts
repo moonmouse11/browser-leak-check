@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { test as base } from '@playwright/test';
 import { Builder, By, type WebDriver, type WebElement } from 'selenium-webdriver';
@@ -13,12 +13,25 @@ export const EXTENSION_UUID = '4c0e6f6a-9b1d-4f3e-8a2c-5d7e9f1a3b5c';
 const EXTENSION_ID = 'leak-check@localhost';
 
 // Built by npm run build:e2e:firefox (the e2e build, with the echo source).
-const e2eOutput = path.resolve(import.meta.dirname, '../.output-e2e');
+const extensionDir = path.resolve(import.meta.dirname, '../.output-e2e/firefox-mv3');
 
-function extensionZip(): string {
-  const zip = readdirSync(e2eOutput).find((file) => file.endsWith('-firefox.zip'));
-  if (!zip) throw new Error('no e2e Firefox zip in .output-e2e/ - run npm run build:e2e:firefox');
-  return path.join(e2eOutput, zip);
+// geckodriver listens here; the add-on install below talks to it directly.
+const GECKODRIVER_PORT = 4455;
+
+// Installed from the unpacked directory, not a zip: with the extension in
+// its own process (Firefox's default), pages of a zip-installed temporary
+// add-on never load in this environment - the document stays empty. From
+// a directory they load normally. selenium-webdriver's installAddon only
+// takes a file, so this calls geckodriver's endpoint with a path instead.
+async function installUnpacked(driver: WebDriver): Promise<void> {
+  if (!existsSync(extensionDir)) throw new Error(`${extensionDir} missing - run npm run build:e2e:firefox`);
+  const session = (await driver.getSession()).getId();
+  const response = await fetch(`http://127.0.0.1:${GECKODRIVER_PORT}/session/${session}/moz/addon/install`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ path: extensionDir, temporary: true }),
+  });
+  if (!response.ok) throw new Error(`add-on install failed: ${response.status} ${await response.text()}`);
 }
 
 export function extensionUrl(page: string): string {
@@ -81,16 +94,12 @@ export const test = base.extend<{
   driver: async ({ selection, echo: _echo }, use, testInfo) => {
     const options = new firefox.Options()
       .addArguments('-headless')
-      .setPreference('extensions.webextensions.uuids', JSON.stringify({ [EXTENSION_ID]: EXTENSION_UUID }))
-      // Out-of-process extensions (Firefox's default) break WebDriver
-      // navigation to moz-extension:// pages: driver.get() never completes
-      // and later commands see an empty document. In-process extensions
-      // behave the same otherwise - requests still carry the extension's
-      // principal, which is what the Origin capture measures.
-      .setPreference('extensions.webextensions.remote', false);
+      .setPreference('extensions.webextensions.uuids', JSON.stringify({ [EXTENSION_ID]: EXTENSION_UUID }));
     if (process.env.FIREFOX_BINARY) options.setBinary(process.env.FIREFOX_BINARY);
 
-    const service = new firefox.ServiceBuilder(process.env.GECKODRIVER_PATH ?? 'geckodriver');
+    const service = new firefox.ServiceBuilder(process.env.GECKODRIVER_PATH ?? 'geckodriver').setPort(
+      GECKODRIVER_PORT,
+    );
     const driver = await new Builder()
       .forBrowser('firefox')
       .setFirefoxOptions(options)
@@ -98,10 +107,7 @@ export const test = base.extend<{
       .build();
 
     try {
-      await (driver as unknown as { installAddon(path: string, temporary: boolean): Promise<string> }).installAddon(
-        extensionZip(),
-        true,
-      );
+      await installUnpacked(driver);
 
       if (selection) {
         // The options page contacts nothing, so it's a safe place to write

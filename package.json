@@ -19,7 +19,7 @@
     "check:release": "tsx scripts/check-release.ts",
     "test:docker": "sh scripts/test-docker.sh",
     "test:e2e:firefox": "playwright test --project=firefox",
-    "build:e2e:firefox": "WXT_E2E_ECHO_URL=http://127.0.0.1:8787/ wxt zip -b firefox"
+    "build:e2e:firefox": "WXT_E2E_ECHO_URL=http://127.0.0.1:8787/ wxt build -b firefox"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
