@@ -235,6 +235,70 @@ describe('detectWebrtcLeak', () => {
     expect(result.status).toBe('no-leak');
   });
 
+  it('reports webrtc as unresponsive, within the timeout, when no offer ever comes', async () => {
+    vi.stubGlobal(
+      'RTCPeerConnection',
+      class {
+        onicecandidate = null;
+        createDataChannel() {}
+        createOffer() {
+          return new Promise(() => {}); // e.g. a stubbed API that never answers
+        }
+        close() {}
+      },
+    );
+
+    const result = await detectWebrtcLeak([SERVER], ['198.51.100.7'], { timeoutMs: 30 });
+
+    expect(result).toEqual({
+      status: 'webrtc-unresponsive',
+      candidates: [],
+      servers: [{ serverId: 'one', status: 'unavailable', addresses: [] }],
+    });
+  });
+
+  it('keeps results from answering servers when another one hangs', async () => {
+    const hung = stun('hung');
+    class MixedPeerConnection {
+      onicecandidate: ((event: IceCandidateEvent) => void) | null = null;
+      private readonly url: string;
+      constructor(config: RTCConfiguration) {
+        this.url = String(config.iceServers?.[0]?.urls);
+      }
+      createDataChannel() {}
+      createOffer() {
+        return this.url === hung.url ? new Promise(() => {}) : Promise.resolve({});
+      }
+      async setLocalDescription() {
+        queueMicrotask(() => {
+          for (const candidate of [{ type: 'srflx', address: '198.51.100.7' }, null]) {
+            this.onicecandidate?.({ candidate });
+          }
+        });
+      }
+      close() {}
+    }
+    vi.stubGlobal('RTCPeerConnection', MixedPeerConnection);
+
+    const result = await detectWebrtcLeak([SERVER, hung], ['198.51.100.7'], { timeoutMs: 30 });
+
+    expect(result.status).toBe('no-leak');
+    expect(result.servers).toEqual([
+      { serverId: 'one', status: 'ok', addresses: ['198.51.100.7'] },
+      { serverId: 'hung', status: 'unavailable', addresses: [] },
+    ]);
+  });
+
+  it('keeps what it gathered when gathering never signals completion', async () => {
+    // No trailing null candidate: gathering ends by the timer instead, and
+    // what arrived before it still counts - it is not an unresponsive offer.
+    installFakeRTCPeerConnection([{ type: 'srflx', address: '198.51.100.7' }]);
+
+    const result = await detectWebrtcLeak([SERVER], ['198.51.100.7'], { timeoutMs: 30 });
+
+    expect(result.servers).toEqual([{ serverId: 'one', status: 'ok', addresses: ['198.51.100.7'] }]);
+  });
+
   it('makes no fetch calls of its own', async () => {
     installFakeRTCPeerConnection([null]);
     const fetchSpy = vi.fn();

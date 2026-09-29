@@ -39,6 +39,26 @@ describe('detectDnsLeak', () => {
     expect(result).toEqual({ status: 'failed', resolvers: [] });
   });
 
+  it('reports failed, within the timeout, when bash.ws never answers the id request', async () => {
+    mockFetch(() => new Promise(() => {}));
+
+    const result = await detectDnsLeak({ timeoutMs: 30 });
+
+    expect(result).toEqual({ status: 'failed', resolvers: [] });
+  });
+
+  it('reports failed, within the timeout, when the results request hangs', async () => {
+    mockFetch(async (url) => {
+      if (url.endsWith('/id')) return textResponse('abc123');
+      if (url.includes(RESULT_URL_MARKER)) return new Promise<Response>(() => {});
+      throw new Error('TLS handshake failed');
+    });
+
+    const result = await detectDnsLeak({ timeoutMs: 30 });
+
+    expect(result.status).toBe('failed');
+  });
+
   it('reports failed when the results request fails, distinct from a real no-leak result', async () => {
     mockFetch(async (url) =>
       url.endsWith('/id') ? textResponse('abc123') : jsonResponse([], false),

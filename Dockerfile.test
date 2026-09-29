@@ -1,0 +1,39 @@
+# Test image: unit tests + Chromium and Firefox extension e2e, so browser
+# tests never run on (or pop up on) the developer's machine. Reusable as-is
+# by CI. Build: docker compose -f compose.test.yaml build
+FROM node:25.8.0-bookworm
+
+ARG GECKODRIVER_VERSION=0.37.1
+ARG GECKODRIVER_SHA256=e815130ea95983e162ae91843b48d3a3ce991735635fce83a647afde21e09f7e
+
+# Firefox ESR from Debian - a real Firefox that geckodriver can drive
+# (Playwright's own Firefox build can't load extensions).
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends firefox-esr \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL -o /tmp/geckodriver.tar.gz \
+    "https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz" \
+  && echo "${GECKODRIVER_SHA256}  /tmp/geckodriver.tar.gz" | sha256sum -c - \
+  && tar -xzf /tmp/geckodriver.tar.gz -C /usr/local/bin \
+  && rm /tmp/geckodriver.tar.gz
+
+# Playwright's Chromium, at exactly the @playwright/test version the
+# lockfile pins, installed where any user can read it.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+COPY package-lock.json /tmp/package-lock.json
+RUN PLAYWRIGHT_VERSION=$(node -p "require('/tmp/package-lock.json').packages['node_modules/@playwright/test'].version") \
+  && npx -y "playwright@${PLAYWRIGHT_VERSION}" install --with-deps chromium \
+  && chmod -R a+rX /ms-playwright \
+  && rm /tmp/package-lock.json
+
+# The compose file mounts a named volume here; creating it owned by the
+# default host user lets the volume inherit that ownership, so npm ci can
+# write to it while the container runs as the host user.
+RUN mkdir -p /work/node_modules && chown -R 1000:1000 /work
+
+WORKDIR /work
+ENV HOME=/tmp/home \
+    FIREFOX_BINARY=/usr/bin/firefox-esr \
+    GECKODRIVER_PATH=/usr/local/bin/geckodriver
+CMD ["sh", "scripts/docker-test.sh"]

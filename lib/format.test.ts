@@ -102,6 +102,13 @@ describe('webrtcStatus', () => {
     });
   });
 
+  it('does not present an unresponsive webrtc as the protected state', () => {
+    expect(webrtcStatus({ status: 'webrtc-unresponsive', candidates: [], servers: [] })).toEqual({
+      text: 'webrtc not responding',
+      variant: 'warn',
+    });
+  });
+
   it('warns rather than reassures when there is no connection', () => {
     expect(webrtcStatus({ status: 'no-connection', candidates: [], servers: [] }).variant).toBe('warn');
   });
