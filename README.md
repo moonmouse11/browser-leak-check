@@ -139,8 +139,8 @@ Set `PWHEADED=1` to watch a run in a real window.
 ### Running tests in Docker
 
 `npm run test:docker` runs everything in a container - release and e2e
-builds, the release-build guard, unit tests, the Chromium e2e suite and the
-Firefox e2e suite - with one exit code. The host needs only Docker: the
+builds, the release-build guard, the type-check, unit tests, the Chromium
+e2e suite and the Firefox e2e suite - with one exit code. The host needs only Docker: the
 image (`Dockerfile.test`) brings Node 25.8.0, Playwright's Chromium,
 Firefox ESR and geckodriver, and keeps its own `node_modules` in a Docker
 volume, so the host's is never used or modified.

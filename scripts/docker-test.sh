@@ -1,7 +1,7 @@
 #!/bin/sh
 # Entry point of the test container (Dockerfile.test / compose.test.yaml):
-# unit tests, Chromium e2e and Firefox e2e, one exit code. Run it with
-# npm run test:docker from the host, not directly.
+# builds, type-check, unit tests, Chromium e2e and Firefox e2e, one exit
+# code. Run it with npm run test:docker from the host, not directly.
 set -u
 cd /work
 mkdir -p "$HOME"
@@ -25,6 +25,7 @@ step() {
 step "release builds" sh -c 'npm run -s build && npm run -s build:firefox'
 step "e2e Firefox build" npm run -s build:e2e:firefox
 step "release builds contain no e2e-only code" npm run -s check:release
+step "type-check" npm run -s compile
 step "unit tests" npm test
 step "Chromium e2e" npm run -s test:e2e
 step "Firefox e2e" npm run -s test:e2e:firefox

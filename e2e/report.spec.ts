@@ -60,7 +60,8 @@ test('still finishes when WebRTC never answers (e.g. a stubbed API)', async ({ c
   // What a WebRTC-blocking extension that stubs the API instead of removing
   // it looks like: an RTCPeerConnection whose offer never comes.
   await context.addInitScript(() => {
-    RTCPeerConnection.prototype.createOffer = () => new Promise(() => {});
+    // A cast: a stub that never settles fits none of createOffer's overloads.
+    (RTCPeerConnection.prototype as { createOffer: unknown }).createOffer = () => new Promise(() => {});
   });
 
   const page = await context.newPage();
