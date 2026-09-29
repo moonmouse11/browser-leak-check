@@ -95,10 +95,8 @@ for the full reasoning behind these decisions.
 
 Phase 1 (MVP), the DNS leak test (via bash.ws rather than our own DNS
 server) and multi-source IP comparison with user-selected sources are
-implemented and tested — see [`PLAN.md`](PLAN.md) for the
-phased roadmap (Phase 3: store publishing) and
-[`openspec/changes/`](openspec/changes/) for the specs this implementation
-follows.
+implemented and tested — see [`openspec/changes/`](openspec/changes/) for
+the specs this implementation follows.
 
 ## Getting started
 
@@ -143,10 +141,10 @@ lib/                 IP detection, WebRTC leak detection, fingerprint
                       collection - framework-agnostic, unit-tested
 entrypoints/popup/    Quick-glance popup UI
 entrypoints/report/   Full report page
+entrypoints/options/  Source selection (also shown by the popup on first run)
 e2e/                  Playwright tests against the built extension
 openspec/             Spec-driven planning artifacts (proposal, specs,
                       design, tasks) for this and future changes
-PLAN.md               Project roadmap and open questions
 ```
 
 ## Contributing / planning workflow
