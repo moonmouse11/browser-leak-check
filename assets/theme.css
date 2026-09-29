@@ -271,3 +271,141 @@ body {
   color: var(--lc-muted);
   margin-right: 5px;
 }
+
+/* Source selection - the same panel/row language as the results, one
+   checkbox row per service */
+
+.lc-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lc-fieldset {
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.lc-legend {
+  padding: 0 6px;
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--lc-accent);
+}
+
+.lc-fieldset-hint {
+  margin: 0;
+  padding: 4px 12px 6px;
+  font-size: 11px;
+  color: var(--lc-muted);
+}
+
+.lc-choice {
+  cursor: pointer;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.lc-choice input {
+  margin: 0;
+  accent-color: var(--lc-accent);
+}
+
+.lc-choice-name {
+  font-weight: 700;
+}
+
+.lc-choice-operator {
+  color: var(--lc-muted);
+  font-size: 12px;
+}
+
+.lc-choice-flags {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.lc-flag {
+  font-size: 10.5px;
+  padding: 0 5px;
+  border: 1px solid var(--lc-border);
+  color: var(--lc-muted);
+}
+
+.lc-flag--vendor {
+  border-color: var(--lc-warn);
+  color: var(--lc-warn);
+}
+
+.lc-selection-error {
+  margin: 0;
+  min-height: 1em;
+  font-size: 12px;
+  color: var(--lc-warn);
+}
+
+.lc-btn--secondary {
+  border-color: var(--lc-border);
+  color: var(--lc-text);
+  font-weight: 400;
+}
+
+.lc-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.lc-btn:disabled:hover {
+  background: transparent;
+  color: var(--lc-accent);
+}
+
+/* Per-source results table on the report page */
+
+.lc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.lc-table th,
+.lc-table td {
+  text-align: left;
+  padding: 6px 10px;
+  vertical-align: baseline;
+  overflow-wrap: anywhere;
+}
+
+.lc-table th {
+  color: var(--lc-muted);
+  font-weight: 400;
+  border-bottom: 1px solid var(--lc-border);
+}
+
+.lc-table tr + tr td {
+  border-top: 1px dashed var(--lc-border);
+}
+
+.lc-table td[data-match='no'] {
+  color: var(--lc-warn);
+}
+
+.lc-table td[data-state='failed'] {
+  color: var(--lc-muted);
+}
+
+.lc-table-wrap {
+  overflow-x: auto;
+}
+
+.lc-links {
+  display: flex;
+  gap: 8px;
+}
+
+.lc-links .lc-btn {
+  flex: 1 1 0;
+}

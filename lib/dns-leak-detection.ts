@@ -1,5 +1,5 @@
 import {
-  DNS_LEAK_BASE_URL,
+  DNS_SOURCE,
   DNS_LEAK_PROBE_COUNT,
   DNS_LEAK_PROBE_TIMEOUT_MS,
   DNS_LEAK_RESULT_DELAY_MS,
@@ -11,7 +11,8 @@ export interface DnsResolver {
   asn: string;
 }
 
-export type DnsLeakStatus = 'no-leak' | 'leak-detected' | 'unknown' | 'failed';
+// 'off': the user's source selection excludes bash.ws, so the check never ran.
+export type DnsLeakStatus = 'no-leak' | 'leak-detected' | 'unknown' | 'failed' | 'off';
 
 export interface DnsLeakResult {
   status: DnsLeakStatus;
@@ -31,8 +32,10 @@ interface BashWsEntry {
   org: string;
 }
 
+const PROBE_DOMAIN = new URL(DNS_SOURCE.url).host;
+
 async function fetchSessionId(): Promise<string> {
-  const response = await fetch(`${DNS_LEAK_BASE_URL}/id`);
+  const response = await fetch(`${DNS_SOURCE.url}/id`);
   if (!response.ok) throw new Error(`bash.ws id request failed: ${response.status}`);
 
   const id = (await response.text()).trim();
@@ -50,7 +53,7 @@ async function fireProbes(id: string, count: number): Promise<void> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), DNS_LEAK_PROBE_TIMEOUT_MS);
 
-    return fetch(`https://${index + 1}.${id}.bash.ws`, {
+    return fetch(`https://${index + 1}.${id}.${PROBE_DOMAIN}`, {
       mode: 'no-cors',
       signal: controller.signal,
     })
@@ -66,7 +69,7 @@ function delay(ms: number): Promise<void> {
 }
 
 async function fetchResults(id: string): Promise<BashWsEntry[]> {
-  const response = await fetch(`${DNS_LEAK_BASE_URL}/dnsleak/test/${id}?json`);
+  const response = await fetch(`${DNS_SOURCE.url}/dnsleak/test/${id}?json`);
   if (!response.ok) throw new Error(`bash.ws results request failed: ${response.status}`);
   return response.json();
 }

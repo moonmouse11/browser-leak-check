@@ -1,43 +1,21 @@
-import type { BrowserContext } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, isAllowedHost, recordHosts, test } from './fixtures';
+import { recommendedSelection } from '../lib/selection';
 
-function isDocumentedHost(host: string, extensionId: string): boolean {
-  return (
-    host === extensionId ||
-    host === 'api.ipify.org' ||
-    host === 'api6.ipify.org' ||
-    host === 'bash.ws' ||
-    host.endsWith('.bash.ws')
-  );
-}
+test('a popup + report session contacts only the hosts of the saved selection', async ({
+  context,
+  extensionId,
+}) => {
+  const hosts = recordHosts(context);
 
-function recordHosts(context: BrowserContext): Set<string> {
-  const requestedHosts = new Set<string>();
-  context.on('request', (request) => {
-    try {
-      requestedHosts.add(new URL(request.url()).host);
-    } catch {
-      // ignore non-URL requests
-    }
-  });
-  return requestedHosts;
-}
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await expect(popup.locator('#row-dns .lc-row-value')).not.toHaveText('checking', { timeout: 15_000 });
 
-for (const pageName of ['popup', 'report']) {
-  test(`${pageName} page contacts only the documented third-party hosts`, async ({
-    context,
-    extensionId,
-  }) => {
-    const requestedHosts = recordHosts(context);
+  const [report] = await Promise.all([context.waitForEvent('page'), popup.click('#details')]);
+  await report.getByRole('button', { name: 're-run checks' }).click();
+  await expect(report.locator('#row-dns .lc-row-value')).not.toHaveText('checking', { timeout: 15_000 });
+  await expect(report.locator('#checked-at')).toContainText('checked at', { timeout: 15_000 });
 
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/${pageName}.html`);
-
-    await expect(page.locator('#row-dns .lc-row-value')).not.toHaveText('checking', {
-      timeout: 15_000,
-    });
-
-    const unexpected = [...requestedHosts].filter((host) => !isDocumentedHost(host, extensionId));
-    expect(unexpected).toEqual([]);
-  });
-}
+  const selection = recommendedSelection();
+  expect([...hosts].filter((host) => !isAllowedHost(host, selection, extensionId))).toEqual([]);
+});
