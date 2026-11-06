@@ -48,7 +48,49 @@ export interface DnsSource extends SourceBase {
   url: string;
 }
 
-export type Source = HttpSource | StunSource | DnsSource;
+// A service's own Cloudflare trace endpoint: answers "what egress IP does
+// THIS service see" plus edge node, WARP and protocol versions. Selectable
+// like IP-echo sources, because querying it discloses the user's IP to
+// that service's operator (see check-catalog design.md decision 3).
+export interface TraceSource extends SourceBase {
+  kind: 'trace';
+  url: string;
+}
+
+// The endpoints below are registry-listed and labeled but NOT individually
+// selectable: the user consents by running the check card, and they see no
+// more than a normal site visit would disclose.
+
+// An official statuspage v2 status endpoint (`/api/v2/status.json`).
+export interface StatusSource extends SourceBase {
+  kind: 'status';
+  url: string;
+}
+
+// An RDAP bootstrap service; redirects to the authoritative RIR server.
+export interface RdapSource extends SourceBase {
+  kind: 'rdap';
+  url: string;
+}
+
+// A connectivity probe target (favicon or a known lightweight endpoint).
+// Queried with no-cors, so reachability is all it answers.
+export interface ProbeSource extends SourceBase {
+  kind: 'probe';
+  url: string;
+}
+
+// The bandwidth measurement endpoint (speed.cloudflare.com __down/__up).
+export interface BandwidthSource extends SourceBase {
+  kind: 'bandwidth';
+  url: string;
+}
+
+export type Source = HttpSource | StunSource | DnsSource | TraceSource;
+
+// Everything the extension may contact, selectable or not - the README
+// disclosure test iterates this list.
+export type ContactedSource = Source | StatusSource | RdapSource | ProbeSource | BandwidthSource;
 
 // Every service here was verified on 2026-09-29 to answer a request from
 // an extension Origin with Access-Control-Allow-Origin - the extension has
@@ -320,7 +362,142 @@ export const DNS_SOURCE: DnsSource = {
   recommended: true,
 };
 
-export const ALL_SOURCES: Source[] = [...HTTP_SOURCES, ...STUN_SOURCES, DNS_SOURCE];
+// Service-visibility trace endpoints (check-catalog). All start
+// recommended: false - querying them tells that AI service your IP, so
+// they are opt-in on the first-run screen too.
+export const TRACE_SOURCES: TraceSource[] = [
+  {
+    kind: 'trace',
+    id: 'trace-claude',
+    name: 'Claude (claude.ai)',
+    operator: 'Anthropic',
+    url: 'https://claude.ai/cdn-cgi/trace',
+    ipDataVendor: false,
+    recommended: false,
+  },
+  {
+    kind: 'trace',
+    id: 'trace-chatgpt',
+    name: 'ChatGPT (chatgpt.com)',
+    operator: 'OpenAI',
+    url: 'https://chatgpt.com/cdn-cgi/trace',
+    ipDataVendor: false,
+    recommended: false,
+  },
+  {
+    kind: 'trace',
+    id: 'trace-cloudflare',
+    name: 'Cloudflare (1.1.1.1)',
+    operator: 'Cloudflare',
+    url: 'https://1.1.1.1/cdn-cgi/trace',
+    ipDataVendor: false,
+    recommended: false,
+  },
+];
+
+// Official statuspage v2 endpoints (check-catalog service-status).
+export const STATUS_SOURCES: StatusSource[] = [
+  {
+    kind: 'status',
+    id: 'status-claude',
+    name: 'Claude status',
+    operator: 'Anthropic',
+    url: 'https://status.claude.com/api/v2/status.json',
+    ipDataVendor: false,
+    recommended: false,
+  },
+  {
+    kind: 'status',
+    id: 'status-openai',
+    name: 'OpenAI status',
+    operator: 'OpenAI',
+    url: 'https://status.openai.com/api/v2/status.json',
+    ipDataVendor: false,
+    recommended: false,
+  },
+  {
+    kind: 'status',
+    id: 'status-cloudflare',
+    name: 'Cloudflare status',
+    operator: 'Cloudflare',
+    url: 'https://www.cloudflarestatus.com/api/v2/status.json',
+    ipDataVendor: false,
+    recommended: false,
+  },
+  {
+    kind: 'status',
+    id: 'status-github',
+    name: 'GitHub status',
+    operator: 'GitHub',
+    url: 'https://www.githubstatus.com/api/v2/status.json',
+    ipDataVendor: false,
+    recommended: false,
+  },
+  {
+    kind: 'status',
+    id: 'status-npm',
+    name: 'npm status',
+    operator: 'npm',
+    url: 'https://status.npmjs.org/api/v2/status.json',
+    ipDataVendor: false,
+    recommended: false,
+  },
+];
+
+// RDAP bootstrap: 302-redirects to the authoritative RIR server, so the
+// network owner lookup needs no per-RIR endpoint list.
+export const RDAP_SOURCE: RdapSource = {
+  kind: 'rdap',
+  id: 'rdap-org',
+  name: 'rdap.org',
+  operator: 'rdap.org (redirects to the responsible RIR)',
+  url: 'https://rdap.org',
+  ipDataVendor: false,
+  recommended: false,
+};
+
+// Connectivity probe targets (check-catalog connectivity-check). Where a
+// site has a known cheap endpoint it is used; a favicon works too - any
+// HTTP response means reachable, since no-cors can't read the status.
+export const PROBE_TARGETS: ProbeSource[] = [
+  { kind: 'probe', id: 'probe-google', name: 'Google', operator: 'Google', url: 'https://www.google.com/generate_204', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-youtube', name: 'YouTube', operator: 'Google', url: 'https://www.youtube.com/generate_204', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-cloudflare', name: 'Cloudflare', operator: 'Cloudflare', url: 'https://www.cloudflare.com/favicon.ico', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-github', name: 'GitHub', operator: 'GitHub', url: 'https://github.com/favicon.ico', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-wikipedia', name: 'Wikipedia', operator: 'Wikimedia', url: 'https://www.wikipedia.org/static/favicon/wikipedia.ico', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-reddit', name: 'Reddit', operator: 'Reddit', url: 'https://www.reddit.com/favicon.ico', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-microsoft', name: 'Microsoft', operator: 'Microsoft', url: 'https://www.microsoft.com/favicon.ico', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-apple', name: 'Apple', operator: 'Apple', url: 'https://www.apple.com/favicon.ico', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-amazon', name: 'Amazon', operator: 'Amazon', url: 'https://www.amazon.com/favicon.ico', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-netflix', name: 'Netflix', operator: 'Netflix', url: 'https://www.netflix.com/favicon.ico', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-facebook', name: 'Facebook', operator: 'Meta', url: 'https://www.facebook.com/favicon.ico', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-x', name: 'X (Twitter)', operator: 'X Corp', url: 'https://x.com/favicon.ico', ipDataVendor: false, recommended: false },
+];
+
+// The bandwidth test measures against the nearest Cloudflare edge
+// (check-catalog bandwidth-test). Self-limited far below what the site
+// itself would consume - see design.md decision 9.
+export const BANDWIDTH_SOURCE: BandwidthSource = {
+  kind: 'bandwidth',
+  id: 'bandwidth-cloudflare',
+  name: 'Cloudflare speed test',
+  operator: 'Cloudflare',
+  url: 'https://speed.cloudflare.com',
+  ipDataVendor: false,
+  recommended: false,
+};
+
+export const ALL_SOURCES: Source[] = [...HTTP_SOURCES, ...STUN_SOURCES, DNS_SOURCE, ...TRACE_SOURCES];
+
+// Everything the extension may contact, including the non-selectable
+// endpoint kinds - drives the disclosure test and the health-check tool.
+export const CONTACTED_SOURCES: ContactedSource[] = [
+  ...ALL_SOURCES,
+  ...STATUS_SOURCES,
+  RDAP_SOURCE,
+  ...PROBE_TARGETS,
+  BANDWIDTH_SOURCE,
+];
 
 // Per-source limit, so one slow service never holds up the rest.
 export const HTTP_SOURCE_TIMEOUT_MS = 5000;

@@ -5,6 +5,7 @@ import {
   normalizeIp,
   observedAddresses,
   parseResponse,
+  parseTrace,
   querySource,
   querySources,
   type HttpSourceResult,
