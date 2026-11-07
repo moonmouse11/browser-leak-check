@@ -1,4 +1,11 @@
-import { ALL_SOURCES, CONTACTED_SOURCES } from './config';
+import {
+  ALL_SOURCES,
+  BANDWIDTH_SOURCE,
+  CONTACTED_SOURCES,
+  PROBE_TARGETS,
+  RDAP_SOURCE,
+  STATUS_SOURCES,
+} from './config';
 import type { FamilyAgreement } from './ip-sources';
 import type { WebrtcLeakResult } from './webrtc-leak-detection';
 import type { DnsLeakResult } from './dns-leak-detection';
@@ -40,6 +47,20 @@ export function disclosureText(selected: Iterable<string>): string {
   return `these services see your ip address - ${parts.join('; ')}`;
 }
 
+// The report page's second disclosure line: the catalog cards contact
+// non-selectable endpoints too (the user consents per card run), and those
+// see the user's IP exactly like a normal visit would. Derived from the
+// registry, like everything else.
+export function catalogDisclosureText(): string {
+  const names = (sources: { name: string }[]) => sources.map((source) => source.name).join(', ');
+  return (
+    'running catalog cards also contacts: ' +
+    `status pages (${names(STATUS_SOURCES)}), ` +
+    `${RDAP_SOURCE.name} and the responsible RIR, ` +
+    `connectivity probes (${names(PROBE_TARGETS)}), ` +
+    `${BANDWIDTH_SOURCE.name} - each sees your ip like a normal site visit`
+  );
+}
 export function agreementStatus(agreement: FamilyAgreement): StatusDisplay {
   const { majority, agreeing, total } = agreement;
   const ratio = `${agreeing}/${total} agree`;

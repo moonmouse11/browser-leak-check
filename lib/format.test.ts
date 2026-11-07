@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FamilyAgreement } from './ip-sources';
-import { agreementStatus, disclosureText, dnsStatus, formatSignal, networkOwner, webrtcStatus } from './format';
+import { agreementStatus, catalogDisclosureText, disclosureText, dnsStatus, formatSignal, networkOwner, webrtcStatus } from './format';
 
 function agreement(overrides: Partial<FamilyAgreement>): FamilyAgreement {
   return {
@@ -55,6 +55,22 @@ describe('disclosureText', () => {
       'these services see your ip address - ip-echo: ipify, ident.me; webrtc: Google STUN; dns: bash.ws DNS leak test',
     );
     expect(disclosureText(['ipify', 'ident-me'])).toBe('these services see your ip address - ip-echo: ipify, ident.me');
+  });
+
+  it('names selected trace sources under visibility', () => {
+    expect(disclosureText(['ipify', 'ident-me', 'trace-claude'])).toBe(
+      'these services see your ip address - ip-echo: ipify, ident.me; visibility: Claude (claude.ai)',
+    );
+  });
+});
+
+describe('catalogDisclosureText', () => {
+  it('covers every non-selectable endpoint kind the catalog contacts', () => {
+    const text = catalogDisclosureText();
+    for (const name of ['Claude status', 'rdap.org', 'Google', 'Cloudflare speed test']) {
+      expect(text).toContain(name);
+    }
+    expect(text).toContain('sees your ip');
   });
 });
 

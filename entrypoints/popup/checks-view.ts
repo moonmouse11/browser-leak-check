@@ -55,8 +55,12 @@ export function renderPopupChecks(app: HTMLElement, header: HTMLElement, selecte
   });
   checks.webrtc.then((result) => renderStatusRow('row-webrtc', webrtcStatus(result)));
   checks.dns.then((result) => renderStatusRow('row-dns', dnsStatus(result)));
-  checks.all.then(async (results) => {
-    await writeCache(sessionArea(), results);
-    await appendHistory(localArea(), observedAddresses(results.http), results.checkedAt);
-  });
+  checks.all
+    .then(async (results) => {
+      await writeCache(sessionArea(), results);
+      await appendHistory(localArea(), observedAddresses(results.http), results.checkedAt);
+    })
+    // Cache and history are conveniences: a storage failure must never
+    // surface as an unhandled rejection in the popup.
+    .catch(() => {});
 }

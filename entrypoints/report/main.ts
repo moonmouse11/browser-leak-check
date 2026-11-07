@@ -19,7 +19,7 @@ import {
 import { CATALOG_PARTS, runChecks, type CheckPart, type CheckResults } from '@/lib/checks';
 import { renderStatusRow } from '@/lib/dom';
 import { collectFingerprintSurface, type FingerprintSignal } from '@/lib/fingerprint-surface';
-import { agreementStatus, disclosureText, dnsStatus, formatSignal, sourceName, webrtcStatus } from '@/lib/format';
+import { agreementStatus, catalogDisclosureText, disclosureText, dnsStatus, formatSignal, sourceName, webrtcStatus } from '@/lib/format';
 import { appendHistory, clearHistory, readHistory } from '@/lib/ip-history';
 import { classifyAgreement, observedAddresses } from '@/lib/ip-sources';
 import { loadSelection, selectedSources } from '@/lib/selection';
@@ -276,6 +276,7 @@ app.innerHTML = `
   </div>
 
   <p class="lc-note" id="disclosure"></p>
+  <p class="lc-note lc-note--dim" id="catalog-disclosure"></p>
 
   <div class="lc-section">
     <h2 class="lc-section-title">## checks</h2>
@@ -377,6 +378,7 @@ loadSelection(localArea()).then(async (selection) => {
 
   selectedIds = selection.selected;
   disclosure.textContent = disclosureText(selectedIds);
+  document.querySelector('#catalog-disclosure')!.textContent = catalogDisclosureText();
 
   // Cards whose sources are all deselected read "off" from the start.
   const initialOff: Partial<Record<CardId, string>> = {};

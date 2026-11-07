@@ -333,8 +333,3 @@ export function renderBandwidthDetail(wrap: Element, result: BandwidthResult | B
   );
 }
 
-// The owner string shown next to an address in the whois card summary.
-export function whoisOwnerLine(result: WhoisResult): string {
-  const owners = result.entries.flatMap((entry) => (entry.status === 'ok' && entry.name ? [entry.name] : []));
-  return owners.join(' · ');
-}

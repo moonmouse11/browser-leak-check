@@ -9,6 +9,10 @@ test('opens with idle cards and contacts nothing until a check is started', asyn
 
   await expect(page.locator('.lc-card')).toHaveCount(9);
   await expect(page.locator('#card-ip')).toHaveAttribute('data-state', 'idle');
+
+  // The in-product disclosure covers the catalog's non-selectable endpoints too.
+  await expect(page.locator('#catalog-disclosure')).toContainText('status pages');
+  await expect(page.locator('#catalog-disclosure')).toContainText('rdap.org');
   await page.waitForTimeout(1500);
 
   // No application-level request at all: the catalog never auto-runs.
