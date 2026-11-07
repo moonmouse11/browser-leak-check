@@ -16,6 +16,7 @@ function results(overrides: Partial<CheckResults>): CheckResults {
     version: 2,
     checkedAt: 0,
     selected: [],
+    parts: [],
     http: [],
     webrtc: { status: 'off', candidates: [], servers: [] },
     dns: { status: 'off', resolvers: [] },
@@ -72,6 +73,8 @@ describe('catalog cards', () => {
 
     setCardState(a, 'running');
     expect(a.querySelector<HTMLButtonElement>('.lc-card-run')!.disabled).toBe(true);
+    setCardState(a, 'off');
+    expect(a.querySelector<HTMLButtonElement>('.lc-card-run')!.disabled).toBe(true);
     setCardState(a, 'done');
     expect(a.querySelector<HTMLButtonElement>('.lc-card-run')!.disabled).toBe(false);
   });
@@ -81,6 +84,7 @@ describe('summarizeResults', () => {
   it('derives per-card states from the parts that ran', () => {
     const summary = summarizeResults(
       results({
+        parts: ['http', 'webrtc', 'dns', 'visibility', 'connectivity', 'status', 'whois'],
         http: [
           { sourceId: 'a', status: 'ok', address: '203.0.113.9', family: 'v4' },
           { sourceId: 'b', status: 'ok', address: '203.0.113.9', family: 'v4' },
@@ -114,6 +118,7 @@ describe('summarizeResults', () => {
   it('marks failed parts failed and keeps the others done', () => {
     const summary = summarizeResults(
       results({
+        parts: ['http', 'visibility', 'connectivity'],
         http: [{ sourceId: 'a', status: 'failed', reason: 'timeout' }],
         visibility: { status: 'done', services: [{ sourceId: 'trace-claude', status: 'failed', reason: 'unreachable' }] },
         connectivity: { status: 'done', reachable: 12, total: 12, verdict: 'healthy', results: [] },
@@ -128,6 +133,7 @@ describe('summarizeResults', () => {
   it('reports off states distinctly from failures', () => {
     const summary = summarizeResults(
       results({
+        parts: ['http', 'webrtc', 'dns', 'visibility'],
         http: [{ sourceId: 'a', status: 'ok', address: '203.0.113.9', family: 'v4' }],
         visibility: { status: 'off', services: [] },
       }),

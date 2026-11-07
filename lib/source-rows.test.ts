@@ -7,6 +7,7 @@ function results(overrides: Partial<CheckResults>): CheckResults {
     version: 2,
     checkedAt: 0,
     selected: [],
+    parts: [],
     http: [],
     webrtc: { status: 'off', candidates: [], servers: [] },
     dns: { status: 'off', resolvers: [] },

@@ -99,7 +99,7 @@ export function setCardState(card: Element, state: CardState, summary?: string):
     if (node) node.textContent = summary;
   }
   const run = card.querySelector<HTMLButtonElement>('.lc-card-run');
-  if (run) run.disabled = state === 'running';
+  if (run) run.disabled = state === 'running' || state === 'off';
 }
 
 export interface CardSummary {
@@ -113,7 +113,9 @@ export interface CardSummary {
 export function summarizeResults(results: CheckResults): Partial<Record<CardId, CardSummary>> {
   const out: Partial<Record<CardId, CardSummary>> = {};
 
-  if (results.http.length > 0) {
+  const ran = (part: string) => results.parts.includes(part as CheckResults['parts'][number]);
+
+  if (ran('http') && results.http.length > 0) {
     const v4 = agreementStatus(classifyAgreement(results.http, 'v4'));
     const v6 = agreementStatus(classifyAgreement(results.http, 'v6'));
     const bothFailed = v4.variant === 'warn' && v6.variant === 'warn';
@@ -123,15 +125,16 @@ export function summarizeResults(results: CheckResults): Partial<Record<CardId, 
     };
   }
 
-  if (results.webrtc.status !== 'off' || results.http.length > 0) {
+  if (ran('webrtc')) {
     const display = webrtcStatus(results.webrtc);
     out.webrtc = { state: results.webrtc.status === 'off' ? 'off' : 'done', summary: display.text };
   }
 
-  if (results.dns.status !== 'off') {
-    out.dns = { state: 'done', summary: dnsStatus(results.dns).text };
-  } else if (results.http.length > 0) {
-    out.dns = { state: 'off', summary: dnsStatus(results.dns).text };
+  if (ran('dns')) {
+    out.dns = {
+      state: results.dns.status === 'off' ? 'off' : 'done',
+      summary: dnsStatus(results.dns).text,
+    };
   }
 
   if (results.visibility) {

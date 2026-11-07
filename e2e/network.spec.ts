@@ -12,7 +12,7 @@ test('a popup + report session contacts only the hosts of the saved selection', 
   await expect(popup.locator('#row-dns .lc-row-value')).not.toHaveText('checking', { timeout: 15_000 });
 
   const [report] = await Promise.all([context.waitForEvent('page'), popup.click('#details')]);
-  await report.getByRole('button', { name: 're-run checks' }).click();
+  await report.getByRole('button', { name: 'run all' }).click();
   await expect(report.locator('#row-dns .lc-row-value')).not.toHaveText('checking', { timeout: 15_000 });
   await expect(report.locator('#checked-at')).toContainText('checked at', { timeout: 15_000 });
 

@@ -24,6 +24,8 @@ export interface CheckResults {
   // The selection this check ran with, so a page can list exactly the
   // sources that were contacted.
   selected: string[];
+  // The parts that actually ran, so a page can tell "off" from "not run".
+  parts: CheckPart[];
   http: HttpSourceResult[];
   webrtc: WebrtcLeakResult;
   dns: DnsLeakResult;
@@ -71,7 +73,9 @@ export function runChecks(selected: string[], { parts = DEFAULT_PARTS }: { parts
   const dns: Promise<DnsLeakResult> =
     wanted.has('dns') && sources.dns ? detectDnsLeak() : Promise.resolve({ status: 'off', resolvers: [] });
 
-  const running: RunningChecks = { http, webrtc, dns, all: Promise.reject(new Error('unreachable')) };
+  // `all` is attached below, before the return - a placeholder here would
+  // be an unhandled rejection (vitest caught exactly that).
+  const running = { http, webrtc, dns } as RunningChecks;
 
   if (wanted.has('visibility')) {
     running.visibility = detectServiceVisibility(sources.trace, consensusAddresses(http));
@@ -94,6 +98,7 @@ export function runChecks(selected: string[], { parts = DEFAULT_PARTS }: { parts
     version: 2,
     checkedAt: Date.now(),
     selected,
+    parts: [...wanted],
     http: httpResults,
     webrtc: webrtcResult,
     dns: dnsResult,

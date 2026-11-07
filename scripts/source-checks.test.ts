@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import { HTTP_SOURCES, STUN_SOURCES, type HttpSource } from '../lib/config';
+import { HTTP_SOURCES, RDAP_SOURCE, STATUS_SOURCES, STUN_SOURCES, TRACE_SOURCES, type HttpSource } from '../lib/config';
 import { RESPONSE_SAMPLES } from '../lib/ip-sources.samples';
 import { CANDIDATE_SOURCES } from './candidates';
 import {
   EXTENSION_ORIGIN,
   checkDnsSource,
   checkHttpSource,
+  checkRdapSource,
+  checkStatusSource,
   checkStunSource,
+  checkTraceSource,
   exitCode,
   formatTable,
   type CheckRow,
@@ -41,7 +44,10 @@ describe('checkHttpSource', () => {
       address: '198.51.100.7',
       asn: 'AS64500',
     });
-    expect(fetch.mock.calls[0]![1].headers).toEqual({ Origin: EXTENSION_ORIGIN });
+    expect(fetch.mock.calls[0]![1].headers).toEqual({
+      Origin: EXTENSION_ORIGIN,
+      'User-Agent': expect.stringContaining('Mozilla') as unknown as string,
+    });
   });
 
   it('accepts a reflected extension origin as well as *', async () => {
@@ -171,5 +177,45 @@ describe('formatTable', () => {
     expect(table).toContain('connectivity: ipv4 yes, ipv6 no');
     expect(table).toContain('ipify-v6 (candidate)');
     expect(table).toContain('2/3 ok or skipped; failed: stun-nextcloud');
+  });
+});
+
+describe('checkEndpointSource (trace / status / rdap)', () => {
+  const trace = TRACE_SOURCES[0]!;
+  const status = STATUS_SOURCES[0]!;
+
+  it('is ok when CORS allows the origin and the extension parser accepts the body', async () => {
+    const traceRow = await checkTraceSource(trace, {
+      fetch: fakeFetch('ip=198.51.100.7\ncolo=IAD\nwarp=off\n'),
+    });
+    expect(traceRow).toMatchObject({ kind: 'trace', id: trace.id, status: 'ok' });
+
+    const statusRow = await checkStatusSource(status, {
+      fetch: fakeFetch('{"status":{"indicator":"none","description":"ok"}}'),
+    });
+    expect(statusRow).toMatchObject({ kind: 'status', id: status.id, status: 'ok' });
+
+    const rdapRow = await checkRdapSource(RDAP_SOURCE, {
+      fetch: fakeFetch('{"objectClassName":"ip network","handle":"1.1.1.0/24"}'),
+    });
+    expect(rdapRow).toMatchObject({ kind: 'rdap', id: RDAP_SOURCE.id, status: 'ok' });
+  });
+
+  it('fails with "no cors" when the header does not permit the extension origin', async () => {
+    const row = await checkTraceSource(trace, {
+      fetch: fakeFetch('ip=198.51.100.7\n', { cors: null }),
+    });
+    expect(row).toMatchObject({ status: 'failed', reason: 'no cors' });
+  });
+
+  it('fails with "bad response" when the parser rejects the body', async () => {
+    const row = await checkStatusSource(status, { fetch: fakeFetch('{"page":{}}') });
+    expect(row).toMatchObject({ status: 'failed', reason: 'bad response' });
+  });
+
+  it('verifies rdap through the bootstrap redirect target', async () => {
+    const fetch = fakeFetch('{"objectClassName":"ip network"}');
+    await checkRdapSource(RDAP_SOURCE, { fetch });
+    expect(fetch.mock.calls[0]![0]).toBe(`${RDAP_SOURCE.url}/ip/1.1.1.1`);
   });
 });
