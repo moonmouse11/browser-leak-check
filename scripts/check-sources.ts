@@ -1,9 +1,18 @@
-import { HTTP_SOURCES, STUN_SOURCES } from '../lib/config';
+import {
+  HTTP_SOURCES,
+  RDAP_SOURCE,
+  STATUS_SOURCES,
+  STUN_SOURCES,
+  TRACE_SOURCES,
+} from '../lib/config';
 import { CANDIDATE_SOURCES } from './candidates';
 import {
   checkDnsSource,
   checkHttpSource,
+  checkRdapSource,
+  checkStatusSource,
   checkStunSource,
+  checkTraceSource,
   detectConnectivity,
   exitCode,
   formatTable,
@@ -39,6 +48,9 @@ const rows: CheckRow[] = (
     ...HTTP_SOURCES.map((source) => checkHttpSource(source, { fetch: fetchImpl, connectivity }).then((row) => [row])),
     ...STUN_SOURCES.map((source) => checkStunSource(source, { connectivity })),
     checkDnsSource({ fetch: fetchImpl }).then((row) => [row]),
+    ...TRACE_SOURCES.map((source) => checkTraceSource(source, { fetch: fetchImpl }).then((row) => [row])),
+    ...STATUS_SOURCES.map((source) => checkStatusSource(source, { fetch: fetchImpl }).then((row) => [row])),
+    checkRdapSource(RDAP_SOURCE, { fetch: fetchImpl }).then((row) => [row]),
     ...(args.has('--candidates')
       ? CANDIDATE_SOURCES.map((source) =>
           checkHttpSource(source, { fetch: fetchImpl, connectivity, candidate: true }).then((row) => [row]),

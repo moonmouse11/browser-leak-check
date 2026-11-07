@@ -1,4 +1,4 @@
-import { ALL_SOURCES } from './config';
+import { ALL_SOURCES, CONTACTED_SOURCES } from './config';
 import type { FamilyAgreement } from './ip-sources';
 import type { WebrtcLeakResult } from './webrtc-leak-detection';
 import type { DnsLeakResult } from './dns-leak-detection';
@@ -15,7 +15,7 @@ export interface StatusDisplay {
 }
 
 export function sourceName(id: string): string {
-  return ALL_SOURCES.find((source) => source.id === id)?.name ?? id;
+  return CONTACTED_SOURCES.find((source) => source.id === id)?.name ?? id;
 }
 
 // "AS64500 Example Net GmbH", either half alone, or '' when the service
@@ -28,13 +28,14 @@ export function networkOwner(asn?: string, org?: string): string {
 // see the user's IP address, by name, grouped by the check that uses it.
 export function disclosureText(selected: Iterable<string>): string {
   const ids = new Set(selected);
-  const names = (kind: 'http' | 'stun' | 'dns') =>
+  const names = (kind: 'http' | 'stun' | 'dns' | 'trace') =>
     ALL_SOURCES.filter((source) => source.kind === kind && ids.has(source.id)).map((source) => source.name);
 
   const parts = [
     `ip-echo: ${names('http').join(', ')}`,
     ...(names('stun').length ? [`webrtc: ${names('stun').join(', ')}`] : []),
     ...(names('dns').length ? [`dns: ${names('dns').join(', ')}`] : []),
+    ...(names('trace').length ? [`visibility: ${names('trace').join(', ')}`] : []),
   ];
   return `these services see your ip address - ${parts.join('; ')}`;
 }

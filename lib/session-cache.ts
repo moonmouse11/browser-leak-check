@@ -9,7 +9,9 @@ const KEY = 'lastCheck';
 export async function readCache(session: StorageAreaLike | null): Promise<CheckResults | null> {
   if (!session) return null;
   const cached = (await session.get(KEY))[KEY] as CheckResults | undefined;
-  return cached && typeof cached.checkedAt === 'number' ? cached : null;
+  // A cache from before the current CheckResults shape (e.g. pre-catalog)
+  // is stale: show nothing rather than half-present results.
+  return cached && cached.version === 2 && typeof cached.checkedAt === 'number' ? cached : null;
 }
 
 export async function writeCache(session: StorageAreaLike | null, results: CheckResults): Promise<void> {

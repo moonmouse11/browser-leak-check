@@ -70,6 +70,28 @@ to [bash.ws](https://bash.ws): one request for a test id, a handful of
 probe lookups on `<n>.<id>.bash.ws`, and one request for the result, so
 bash.ws sees your public IP and which DNS resolvers answered for you.
 
+The report page's check catalog adds more checks, each contacting its own
+services only when you run it:
+
+- **Service visibility** queries the trace endpoint of each selected
+  service - `claude.ai` (Anthropic), `chatgpt.com` (OpenAI) and `1.1.1.1`
+  (Cloudflare) - which tells that service your IP exactly like visiting
+  its website would. These are selectable sources and start deselected.
+- **Service status** reads the official status pages `status.claude.com`,
+  `status.openai.com`, `www.cloudflarestatus.com`,
+  `www.githubstatus.com` and `status.npmjs.org`.
+- **Whois** asks `rdap.org`, which redirects to the responsible RIR, so
+  both see the IP you look up.
+- **Connectivity** requests a favicon or a `/generate_204` endpoint from
+  `www.google.com`, `www.youtube.com`, `www.cloudflare.com`, `github.com`,
+  `www.wikipedia.org`, `www.reddit.com`, `www.microsoft.com`,
+  `www.apple.com`, `www.amazon.com`, `www.netflix.com`,
+  `www.facebook.com` and `x.com` - the same request a browser makes when
+  visiting each site.
+- **Bandwidth** downloads from and uploads to `speed.cloudflare.com`
+  (Cloudflare), up to ~30 MB per run, only after you confirm the traffic
+  warning - it never runs as part of "run all".
+
 Requests are sent without cookies (`credentials: 'omit'`), without a
 referrer and bypassing the HTTP cache. One check's results are kept in
 session storage (memory only, cleared when the browser closes) so the

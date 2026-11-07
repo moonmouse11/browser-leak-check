@@ -1,4 +1,11 @@
-import { ALL_SOURCES, DNS_SOURCE, HTTP_SOURCES, STUN_SOURCES, type Source } from './config';
+import {
+  ALL_SOURCES,
+  DNS_SOURCE,
+  HTTP_SOURCES,
+  STUN_SOURCES,
+  TRACE_SOURCES,
+  type Source,
+} from './config';
 import { recommendedSelection, validateSelection } from './selection';
 
 export interface SelectionFormOptions {
@@ -25,6 +32,11 @@ const GROUPS: { title: string; hint: string; sources: Source[] }[] = [
     title: 'dns leak check',
     hint: 'off when not selected',
     sources: [DNS_SOURCE],
+  },
+  {
+    title: 'service visibility (trace)',
+    hint: 'asks each selected service which ip it sees for you',
+    sources: TRACE_SOURCES,
   },
 ];
 
