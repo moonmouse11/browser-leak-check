@@ -79,8 +79,15 @@ export function parseTrace(body: string): TraceInfo {
   const rawIp = fields.get('ip');
   const ip = rawIp ? normalizeIp(rawIp) : null;
   if (!ip) throw new ResponseParseError('trace has no IP address');
-  const pick = (key: string) => fields.get(key) || undefined;
-  return { ip, ...(pick('colo') && { colo: pick('colo') }), ...(pick('warp') && { warp: pick('warp') }), ...(pick('http') && { http: pick('http') }), ...(pick('tls') && { tls: pick('tls') }) };
+  const pick = (key: string): string | undefined => fields.get(key) || undefined;
+  const [colo, warp, http, tls] = [pick('colo'), pick('warp'), pick('http'), pick('tls')];
+  return {
+    ip,
+    ...(colo && { colo }),
+    ...(warp && { warp }),
+    ...(http && { http }),
+    ...(tls && { tls }),
+  };
 }
 
 function parseJson(body: string): unknown {

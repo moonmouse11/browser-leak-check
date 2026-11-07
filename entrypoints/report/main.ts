@@ -22,7 +22,7 @@ import { collectFingerprintSurface, type FingerprintSignal } from '@/lib/fingerp
 import { agreementStatus, disclosureText, dnsStatus, formatSignal, sourceName, webrtcStatus } from '@/lib/format';
 import { appendHistory, clearHistory, readHistory } from '@/lib/ip-history';
 import { classifyAgreement, observedAddresses } from '@/lib/ip-sources';
-import { loadSelection } from '@/lib/selection';
+import { loadSelection, selectedSources } from '@/lib/selection';
 import { readCache, writeCache } from '@/lib/session-cache';
 import { sourceRows } from '@/lib/source-rows';
 import { localArea, sessionArea } from '@/lib/storage';
@@ -165,7 +165,9 @@ function renderParts(results: CheckResults): void {
     renderDnsResolvers(document.querySelector('#dns-resolvers')!, results.dns.resolvers);
   }
   if (results.visibility) renderVisibilityDetail(document.querySelector('#visibility-detail')!, results.visibility);
-  if (results.connectivity) renderConnectivityDetail(document.querySelector('#connectivity-detail')!, results.connectivity);
+  if (results.connectivity) {
+    renderConnectivityDetail(document.querySelector('#connectivity-detail')!, results.connectivity, results.serviceStatus);
+  }
   if (results.serviceStatus) renderStatusDetail(document.querySelector('#status-detail')!, results.serviceStatus);
   if (results.whois) renderWhoisDetail(document.querySelector('#whois-detail')!, results.whois);
   if (results.checkedAt > 0) {
@@ -378,10 +380,10 @@ loadSelection(localArea()).then(async (selection) => {
 
   // Cards whose sources are all deselected read "off" from the start.
   const initialOff: Partial<Record<CardId, string>> = {};
-  const selected = new Set(selectedIds);
-  if (![...selected].some((id) => id.startsWith('stun-'))) initialOff.webrtc = 'off (no stun server selected)';
-  if (!selected.has('bash-ws')) initialOff.dns = 'off (dns check not selected)';
-  if (![...selected].some((id) => id.startsWith('trace-'))) initialOff.visibility = 'off (no trace source selected)';
+  const sources = selectedSources(selectedIds);
+  if (sources.stun.length === 0) initialOff.webrtc = 'off (no stun server selected)';
+  if (!sources.dns) initialOff.dns = 'off (dns check not selected)';
+  if (sources.trace.length === 0) initialOff.visibility = 'off (no trace source selected)';
   for (const [id, note] of Object.entries(initialOff) as [CardId, string][]) {
     const card = document.querySelector(`#card-${id}`);
     if (card) setCardState(card, 'off', note);

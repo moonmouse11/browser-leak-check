@@ -2,9 +2,10 @@ import { browser } from 'wxt/browser';
 import { runChecks } from '@/lib/checks';
 import { renderStatusRow } from '@/lib/dom';
 import { agreementStatus, disclosureText, dnsStatus, webrtcStatus } from '@/lib/format';
-import { classifyAgreement } from '@/lib/ip-sources';
+import { classifyAgreement, observedAddresses } from '@/lib/ip-sources';
+import { appendHistory } from '@/lib/ip-history';
 import { writeCache } from '@/lib/session-cache';
-import { sessionArea } from '@/lib/storage';
+import { localArea, sessionArea } from '@/lib/storage';
 
 function statusRow(id: string, label: string): string {
   return `
@@ -54,5 +55,8 @@ export function renderPopupChecks(app: HTMLElement, header: HTMLElement, selecte
   });
   checks.webrtc.then((result) => renderStatusRow('row-webrtc', webrtcStatus(result)));
   checks.dns.then((result) => renderStatusRow('row-dns', dnsStatus(result)));
-  checks.all.then((results) => writeCache(sessionArea(), results));
+  checks.all.then(async (results) => {
+    await writeCache(sessionArea(), results);
+    await appendHistory(localArea(), observedAddresses(results.http), results.checkedAt);
+  });
 }

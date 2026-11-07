@@ -6,7 +6,9 @@ import { HTTP_SOURCE_TIMEOUT_MS, RDAP_SOURCE } from './config';
 
 export interface WhoisEntry {
   ip: string;
-  status: 'ok' | 'failed';
+  // 'no-record': the RIR answered 404 - the address is unallocated or
+  // bogon, which is an answer, not a lookup failure (see the ip-whois spec).
+  status: 'ok' | 'failed' | 'no-record';
   name?: string;
   range?: string;
   country?: string;
@@ -50,6 +52,7 @@ async function lookup(ip: string, timeoutMs: number): Promise<WhoisEntry> {
       cache: 'no-store',
       signal: controller.signal,
     });
+    if (response.status === 404) return { ip, status: 'no-record' };
     if (!response.ok) return { ip, status: 'failed', reason: `http ${response.status}` };
     return parseRdap(ip, (await response.json()) as RdapRecord);
   } catch (error) {

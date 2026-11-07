@@ -89,7 +89,7 @@ services only when you run it:
   `www.facebook.com` and `x.com` - the same request a browser makes when
   visiting each site.
 - **Bandwidth** downloads from and uploads to `speed.cloudflare.com`
-  (Cloudflare), up to ~30 MB per run, only after you confirm the traffic
+  (Cloudflare), up to ~37 MB per run, only after you confirm the traffic
   warning - it never runs as part of "run all".
 
 Requests are sent without cookies (`credentials: 'omit'`), without a

@@ -199,6 +199,29 @@ describe('detail renderers', () => {
     expect(wrap.querySelector('[data-state="failed"]')).not.toBeNull();
   });
 
+  it('attributes an unreachable site to an official incident when linked', () => {
+    const wrap = document.createElement('div');
+    renderConnectivityDetail(
+      wrap,
+      {
+        status: 'done',
+        reachable: 1,
+        total: 2,
+        verdict: 'partial',
+        results: [
+          { targetId: 'probe-google', status: 'reachable', elapsedMs: 42 },
+          { targetId: 'probe-github', status: 'unreachable' },
+        ],
+      },
+      {
+        status: 'done',
+        services: [{ sourceId: 'status-github', indicator: 'outage', description: 'Partial outage' }],
+      },
+    );
+
+    expect(wrap.textContent).toContain('service incident: Partial outage');
+  });
+
   it('attributes an incident to the service, with its description', () => {
     const wrap = document.createElement('div');
     renderStatusDetail(wrap, {

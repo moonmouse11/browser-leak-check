@@ -78,6 +78,9 @@ export interface RdapSource extends SourceBase {
 export interface ProbeSource extends SourceBase {
   kind: 'probe';
   url: string;
+  // The statuspage source covering this service, when one exists - lets
+  // the connectivity check attribute an unreachable site to an incident.
+  statusOf?: string;
 }
 
 // The bandwidth measurement endpoint (speed.cloudflare.com __down/__up).
@@ -462,8 +465,8 @@ export const RDAP_SOURCE: RdapSource = {
 export const PROBE_TARGETS: ProbeSource[] = [
   { kind: 'probe', id: 'probe-google', name: 'Google', operator: 'Google', url: 'https://www.google.com/generate_204', ipDataVendor: false, recommended: false },
   { kind: 'probe', id: 'probe-youtube', name: 'YouTube', operator: 'Google', url: 'https://www.youtube.com/generate_204', ipDataVendor: false, recommended: false },
-  { kind: 'probe', id: 'probe-cloudflare', name: 'Cloudflare', operator: 'Cloudflare', url: 'https://www.cloudflare.com/favicon.ico', ipDataVendor: false, recommended: false },
-  { kind: 'probe', id: 'probe-github', name: 'GitHub', operator: 'GitHub', url: 'https://github.com/favicon.ico', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-cloudflare', name: 'Cloudflare', operator: 'Cloudflare', url: 'https://www.cloudflare.com/favicon.ico', statusOf: 'status-cloudflare', ipDataVendor: false, recommended: false },
+  { kind: 'probe', id: 'probe-github', name: 'GitHub', operator: 'GitHub', url: 'https://github.com/favicon.ico', statusOf: 'status-github', ipDataVendor: false, recommended: false },
   { kind: 'probe', id: 'probe-wikipedia', name: 'Wikipedia', operator: 'Wikimedia', url: 'https://www.wikipedia.org/static/favicon/wikipedia.ico', ipDataVendor: false, recommended: false },
   { kind: 'probe', id: 'probe-reddit', name: 'Reddit', operator: 'Reddit', url: 'https://www.reddit.com/favicon.ico', ipDataVendor: false, recommended: false },
   { kind: 'probe', id: 'probe-microsoft', name: 'Microsoft', operator: 'Microsoft', url: 'https://www.microsoft.com/favicon.ico', ipDataVendor: false, recommended: false },

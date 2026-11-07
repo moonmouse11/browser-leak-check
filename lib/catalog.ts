@@ -1,12 +1,13 @@
 import type { BandwidthFailure, BandwidthResult } from './bandwidth';
 import type { CheckResults } from './checks';
 import type { ConnectivityResult } from './connectivity';
-import { agreementStatus, dnsStatus, networkOwner, sourceName, webrtcStatus, type StatusVariant } from './format';
+import { agreementStatus, dnsStatus, sourceName, webrtcStatus, type StatusVariant } from './format';
 import type { HistoryEntry } from './ip-history';
 import { classifyAgreement } from './ip-sources';
 import type { WhoisResult } from './ip-whois';
 import type { ServiceStatusResult } from './service-status';
 import type { ServiceVisibilityResult } from './service-visibility';
+import { PROBE_TARGETS } from './config';
 
 // The report page's check catalog: every check as a card with its own
 // state, summary, run control and detail view. DOM APIs only, like the
@@ -42,7 +43,7 @@ export const CATALOG_CARDS: CardDef[] = [
   { id: 'connectivity', title: 'connectivity', note: 'rough reachability to popular sites', runnable: true },
   { id: 'status', title: 'service status', note: 'official status pages', runnable: true },
   { id: 'whois', title: 'whois', note: 'network owner of your egress ip', runnable: true },
-  { id: 'bandwidth', title: 'bandwidth', note: 'uses up to ~40 mb of traffic per run', runnable: true },
+  { id: 'bandwidth', title: 'bandwidth', note: 'uses up to ~37 mb of traffic per run', runnable: true },
   { id: 'history', title: 'ip history', note: 'local only, never uploaded', runnable: false },
 ];
 
@@ -69,10 +70,15 @@ export function createCard(def: CardDef, onRun: (id: CardId) => void): HTMLEleme
 
   const head = document.createElement('div');
   head.className = 'lc-card-head';
-  const title = span('lc-card-title', def.title);
+  // The title links to the card's detail section - the "open its detail"
+  // control the check-catalog-ui spec asks for.
+  const titleLink = document.createElement('a');
+  titleLink.className = 'lc-card-title';
+  titleLink.href = `#section-${def.id}`;
+  titleLink.textContent = def.title;
   const badge = span('lc-badge');
   badge.setAttribute('data-variant', 'pending');
-  head.append(title, badge);
+  head.append(titleLink, badge);
   card.append(head);
 
   if (def.note) card.append(span('lc-card-note', def.note));
@@ -243,14 +249,30 @@ export function renderVisibilityDetail(wrap: Element, result: ServiceVisibilityR
   wrap.replaceChildren(table([header(['service', 'egress ip', 'verdict', 'edge · protocols', 'family']), ...rows]));
 }
 
-export function renderConnectivityDetail(wrap: Element, result: ConnectivityResult): void {
-  const rows = result.results.map((probe) => [
-    cell(sourceName(probe.targetId)),
-    cell(probe.status, { 'data-state': probe.status === 'reachable' ? 'ok' : 'failed' }),
-    cell(probe.elapsedMs !== undefined ? `${probe.elapsedMs} ms` : '-'),
-  ]);
+export function renderConnectivityDetail(
+  wrap: Element,
+  result: ConnectivityResult,
+  serviceStatus?: ServiceStatusResult,
+): void {
+  // An unreachable probe next to an official incident reads as the
+  // service's problem, not the user's network (service-status spec).
+  const incidentBySourceId = new Map(
+    (serviceStatus?.services ?? [])
+      .filter((service) => service.indicator === 'degraded' || service.indicator === 'outage')
+      .map((service) => [service.sourceId, service.description ?? service.indicator]),
+  );
+  const rows = result.results.map((probe) => {
+    const target = PROBE_TARGETS.find((candidate) => candidate.id === probe.targetId);
+    const incident = target?.statusOf ? incidentBySourceId.get(target.statusOf) : undefined;
+    return [
+      cell(sourceName(probe.targetId)),
+      cell(probe.status, { 'data-state': probe.status === 'reachable' ? 'ok' : 'failed' }),
+      cell(probe.elapsedMs !== undefined ? `${probe.elapsedMs} ms` : '-'),
+      cell(probe.status === 'unreachable' && incident ? `service incident: ${incident}` : '-'),
+    ];
+  });
   const verdict = span('lc-comment', `verdict: ${result.verdict.replace('-', ' ')} (${result.reachable}/${result.total} reachable)`);
-  wrap.replaceChildren(verdict, table([header(['site', 'status', 'rough latency']), ...rows]));
+  wrap.replaceChildren(verdict, table([header(['site', 'status', 'rough latency', 'note']), ...rows]));
 }
 
 export function renderStatusDetail(wrap: Element, result: ServiceStatusResult): void {
@@ -272,7 +294,9 @@ export function renderWhoisDetail(wrap: Element, result: WhoisResult): void {
   const rows = result.entries.map((entry) =>
     entry.status === 'ok'
       ? [cell(entry.ip), cell(entry.name ?? '-'), cell(entry.range ?? '-'), cell(entry.country ?? '-')]
-      : [cell(entry.ip), cell('failed', { 'data-state': 'failed' }), cell(entry.reason ?? '-'), cell('-')],
+      : entry.status === 'no-record'
+        ? [cell(entry.ip), cell('no record', { 'data-state': 'differing' }), cell('unallocated or bogon'), cell('-')]
+        : [cell(entry.ip), cell('failed', { 'data-state': 'failed' }), cell(entry.reason ?? '-'), cell('-')],
   );
   wrap.replaceChildren(table([header(['ip', 'network', 'range', 'country']), ...rows]));
 }
@@ -314,5 +338,3 @@ export function whoisOwnerLine(result: WhoisResult): string {
   const owners = result.entries.flatMap((entry) => (entry.status === 'ok' && entry.name ? [entry.name] : []));
   return owners.join(' · ');
 }
-
-export { networkOwner };

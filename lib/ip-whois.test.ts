@@ -46,7 +46,7 @@ describe('lookupWhois', () => {
 
     const { entries } = await lookupWhois(['1.1.1.1', '192.0.2.1']);
     expect(entries[0]?.status).toBe('ok');
-    expect(entries[1]).toEqual({ ip: '192.0.2.1', status: 'failed', reason: 'http 404' });
+    expect(entries[1]).toEqual({ ip: '192.0.2.1', status: 'no-record' });
   });
 
   it('rejects an empty record instead of showing blanks', async () => {
