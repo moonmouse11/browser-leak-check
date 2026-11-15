@@ -58,6 +58,38 @@ function normalizeOrg(value: unknown): string | undefined {
 
 export class ResponseParseError extends Error {}
 
+// The full Cloudflare trace answer, beyond the egress IP that
+// `parseResponse` extracts for IP-echo purposes: which edge node answered,
+// whether WARP is on (the egress is then Cloudflare's own address), and
+// the negotiated protocol versions. Used by service-visibility checks.
+export interface TraceInfo {
+  ip: { address: string; family: IpFamily };
+  colo?: string;
+  warp?: string;
+  http?: string;
+  tls?: string;
+}
+
+export function parseTrace(body: string): TraceInfo {
+  const fields = new Map<string, string>();
+  for (const line of body.split('\n')) {
+    const eq = line.indexOf('=');
+    if (eq > 0) fields.set(line.slice(0, eq), line.slice(eq + 1).trim());
+  }
+  const rawIp = fields.get('ip');
+  const ip = rawIp ? normalizeIp(rawIp) : null;
+  if (!ip) throw new ResponseParseError('trace has no IP address');
+  const pick = (key: string): string | undefined => fields.get(key) || undefined;
+  const [colo, warp, http, tls] = [pick('colo'), pick('warp'), pick('http'), pick('tls')];
+  return {
+    ip,
+    ...(colo && { colo }),
+    ...(warp && { warp }),
+    ...(http && { http }),
+    ...(tls && { tls }),
+  };
+}
+
 function parseJson(body: string): unknown {
   try {
     return JSON.parse(body);

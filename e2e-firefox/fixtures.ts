@@ -97,9 +97,11 @@ export const test = base.extend<{
       .setPreference('extensions.webextensions.uuids', JSON.stringify({ [EXTENSION_ID]: EXTENSION_UUID }));
     if (process.env.FIREFOX_BINARY) options.setBinary(process.env.FIREFOX_BINARY);
 
-    const service = new firefox.ServiceBuilder(process.env.GECKODRIVER_PATH ?? 'geckodriver').setPort(
-      GECKODRIVER_PORT,
-    );
+    const service = new firefox.ServiceBuilder(process.env.GECKODRIVER_PATH ?? 'geckodriver')
+      .setPort(GECKODRIVER_PORT)
+      // Firefox 153+ refuses WebDriver navigation to privileged
+      // moz-extension pages without this opt-in (geckodriver #2250).
+      .addArguments('--allow-system-access');
     const driver = await new Builder()
       .forBrowser('firefox')
       .setFirefoxOptions(options)

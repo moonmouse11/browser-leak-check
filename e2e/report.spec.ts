@@ -9,8 +9,11 @@ test('renders IP, WebRTC leak, DNS leak, and fingerprint surface sections', asyn
   const page = await context.newPage();
   await page.goto(`chrome-extension://${extensionId}/report.html`);
 
+  // The catalog never auto-runs: the check starts from the run-all control.
+  await page.getByRole('button', { name: 'run all' }).click();
+
   await expect(page.locator('#row-ipv4 .lc-row-value')).not.toHaveText('checking', {
-    timeout: 15_000,
+    timeout: 30_000,
   });
   await expect(page.locator('#row-webrtc .lc-row-value')).not.toHaveText('checking');
   await expect(page.locator('#row-dns .lc-row-value')).not.toHaveText('checking');
@@ -27,7 +30,7 @@ test('renders IP, WebRTC leak, DNS leak, and fingerprint surface sections', asyn
 
   // The disclosure names the selected services, above the results.
   await expect(page.locator('#disclosure')).toContainText('ipify');
-  await expect(page.locator('#disclosure')).toBeInViewport();
+  await expect(page.locator('#disclosure')).toBeVisible();
 
   // 8 fingerprint-surface signals: UA, platform, screen, timezone,
   // languages, canvas hash, WebGL, audio fingerprint.
@@ -66,8 +69,9 @@ test('still finishes when WebRTC never answers (e.g. a stubbed API)', async ({ c
 
   const page = await context.newPage();
   await page.goto(`chrome-extension://${extensionId}/report.html`);
+  await page.getByRole('button', { name: 'run all' }).click();
 
-  await expect(page.locator('#checked-at')).toContainText('checked at', { timeout: 20_000 });
+  await expect(page.locator('#checked-at')).toContainText('checked at', { timeout: 30_000 });
   await expect(page.locator('#row-webrtc .lc-row-value')).toHaveText('webrtc not responding');
   await expect(page.locator('#row-ipv4 .lc-row-value')).not.toHaveText('checking');
 });

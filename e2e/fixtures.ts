@@ -2,7 +2,16 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { chromium, test as base, type BrowserContext, type Page } from '@playwright/test';
-import { ALL_SOURCES, DNS_SOURCE, HTTP_SOURCES } from '../lib/config';
+import {
+  ALL_SOURCES,
+  BANDWIDTH_SOURCE,
+  DNS_SOURCE,
+  HTTP_SOURCES,
+  PROBE_TARGETS,
+  RDAP_SOURCE,
+  STATUS_SOURCES,
+  TRACE_SOURCES,
+} from '../lib/config';
 import { recommendedSelection } from '../lib/selection';
 
 // page.evaluate callbacks run inside the extension page, where the
@@ -39,13 +48,24 @@ async function readExtensionId(page: Page): Promise<string> {
   });
 }
 
+// RDAP bootstrap redirects to the authoritative RIR server, whose host
+// depends on the address being looked up.
+const RIR_RDAP_HOSTS = ['rdap.arin.net', 'rdap.apnic.net', 'rdap.ripe.net', 'rdap.lacnic.net', 'rdap.afrinic.net'];
+
 // Every host an application-level request may go to for a selection:
-// its IP-echo services, plus bash.ws and its probe subdomains when the DNS
-// check is selected. STUN is UDP, so it never shows up in a request log.
+// its IP-echo and trace services, plus bash.ws and its probe subdomains
+// when the DNS check is selected, and the catalog's non-selectable
+// endpoints. STUN is UDP, so it never shows up in a request log.
 export function allowedHosts(selection: string[]): string[] {
-  const hosts = HTTP_SOURCES.filter((source) => selection.includes(source.id)).map(
-    (source) => new URL(source.url).host,
-  );
+  const hosts = [
+    ...HTTP_SOURCES.filter((source) => selection.includes(source.id)).map((source) => new URL(source.url).host),
+    ...TRACE_SOURCES.filter((source) => selection.includes(source.id)).map((source) => new URL(source.url).host),
+    ...STATUS_SOURCES.map((source) => new URL(source.url).host),
+    new URL(RDAP_SOURCE.url).host,
+    ...RIR_RDAP_HOSTS,
+    ...PROBE_TARGETS.map((target) => new URL(target.url).host),
+    new URL(BANDWIDTH_SOURCE.url).host,
+  ];
   return selection.includes(DNS_SOURCE.id) ? [...hosts, new URL(DNS_SOURCE.url).host] : hosts;
 }
 

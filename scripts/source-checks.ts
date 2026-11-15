@@ -1,5 +1,13 @@
-import { DNS_SOURCE, HTTP_SOURCE_TIMEOUT_MS, type HttpSource, type StunSource } from '../lib/config';
-import { parseResponse } from '../lib/ip-sources';
+import {
+  DNS_SOURCE,
+  HTTP_SOURCE_TIMEOUT_MS,
+  type HttpSource,
+  type RdapSource,
+  type StatusSource,
+  type StunSource,
+  type TraceSource,
+} from '../lib/config';
+import { parseResponse, parseTrace } from '../lib/ip-sources';
 import { stunBinding } from './stun';
 
 // What a browser would send from an extension page. Node's fetch doesn't
@@ -7,7 +15,7 @@ import { stunBinding } from './stun';
 export const EXTENSION_ORIGIN = 'chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
 export interface CheckRow {
-  kind: 'http' | 'stun' | 'dns';
+  kind: 'http' | 'stun' | 'dns' | 'trace' | 'status' | 'rdap';
   id: string;
   // Not in the registry yet - never affects the exit code.
   candidate: boolean;
@@ -38,7 +46,15 @@ async function request(fetchImpl: FetchLike, url: string, timeoutMs: number) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetchImpl(url, { headers: { Origin: EXTENSION_ORIGIN }, signal: controller.signal });
+    return await fetchImpl(url, {
+      headers: {
+        Origin: EXTENSION_ORIGIN,
+        // Cloudflare-fronted services (rdap.org) 403 undici's default UA
+        // as a bot; the extension's real requests always carry a browser UA.
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+      },
+      signal: controller.signal,
+    });
   } finally {
     clearTimeout(timer);
   }
@@ -103,6 +119,63 @@ export async function checkDnsSource(options: { fetch: FetchLike; timeoutMs?: nu
   } catch (error) {
     return { ...row, reason: error instanceof Error && error.name === 'AbortError' ? 'timeout' : 'unreachable' };
   }
+}
+
+// Trace / status / RDAP endpoints: 2xx in time, CORS allows an extension
+// origin, and the extension's own parser accepts the body - same contract
+// as checkHttpSource, minus the IP/ASN specifics.
+export async function checkEndpointSource(
+  source: TraceSource | StatusSource | RdapSource,
+  validate: (body: string) => void,
+  options: { fetch: FetchLike; timeoutMs?: number },
+  url: string = source.url,
+): Promise<CheckRow> {
+  const row: CheckRow = { kind: source.kind, id: source.id, candidate: false, status: 'failed' };
+
+  let response;
+  try {
+    response = await request(options.fetch, url, options.timeoutMs ?? HTTP_SOURCE_TIMEOUT_MS);
+  } catch (error) {
+    return { ...row, reason: error instanceof Error && error.name === 'AbortError' ? 'timeout' : 'unreachable' };
+  }
+
+  if (!response.ok) return { ...row, reason: `http ${response.status}` };
+  if (!allowsExtensionOrigin(response.headers)) return { ...row, reason: 'no cors' };
+
+  try {
+    validate(await response.text());
+  } catch {
+    return { ...row, reason: 'bad response' };
+  }
+  return { ...row, status: 'ok' };
+}
+
+export function checkTraceSource(source: TraceSource, options: { fetch: FetchLike }): Promise<CheckRow> {
+  return checkEndpointSource(source, (body) => void parseTrace(body), options);
+}
+
+export function checkStatusSource(source: StatusSource, options: { fetch: FetchLike }): Promise<CheckRow> {
+  return checkEndpointSource(
+    source,
+    (body) => {
+      const data = JSON.parse(body) as { status?: { indicator?: unknown } };
+      if (typeof data.status?.indicator !== 'string') throw new Error('no status indicator');
+    },
+    options,
+  );
+}
+
+export function checkRdapSource(source: RdapSource, options: { fetch: FetchLike }): Promise<CheckRow> {
+  // A known stable allocation exercises the redirect to the RIR too.
+  return checkEndpointSource(
+    source,
+    (body) => {
+      const data = JSON.parse(body) as { objectClassName?: unknown };
+      if (data.objectClassName !== 'ip network') throw new Error('not an rdap ip record');
+    },
+    options,
+    `${source.url}/ip/1.1.1.1`,
+  );
 }
 
 // One row per family the machine has: a server may answer on only one.

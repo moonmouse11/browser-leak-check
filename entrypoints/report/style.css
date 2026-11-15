@@ -22,3 +22,48 @@ body {
   font-weight: 700;
   color: var(--lc-accent);
 }
+
+.lc-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.lc-card {
+  border: 1px solid var(--lc-border, #333);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lc-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lc-card-title {
+  font-weight: 700;
+  color: var(--lc-accent);
+}
+
+.lc-card-note {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.lc-card-summary {
+  font-size: 12px;
+  font-family: inherit;
+  min-height: 2em;
+}
+
+.lc-card[data-state='running'] .lc-card-summary::after {
+  content: '…';
+}
+
+.lc-card-run {
+  align-self: flex-start;
+}

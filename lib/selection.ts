@@ -3,8 +3,10 @@ import {
   DNS_SOURCE,
   HTTP_SOURCES,
   STUN_SOURCES,
+  TRACE_SOURCES,
   type HttpSource,
   type StunSource,
+  type TraceSource,
 } from './config';
 import { clearCache } from './session-cache';
 import type { StorageAreaLike } from './storage';
@@ -87,6 +89,7 @@ export async function saveSelection(
 export interface SelectedSources {
   http: HttpSource[];
   stun: StunSource[];
+  trace: TraceSource[];
   dns: boolean;
 }
 
@@ -96,6 +99,7 @@ export function selectedSources(ids: Iterable<string>): SelectedSources {
   return {
     http: HTTP_SOURCES.filter((source) => selected.has(source.id)),
     stun: STUN_SOURCES.filter((source) => selected.has(source.id)),
+    trace: TRACE_SOURCES.filter((source) => selected.has(source.id)),
     dns: selected.has(DNS_SOURCE.id),
   };
 }
